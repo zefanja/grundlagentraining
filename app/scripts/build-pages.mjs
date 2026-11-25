@@ -26,8 +26,10 @@ if (!key) fail('Secret SUPABASE_ANON_KEY fehlt (Settings → Secrets and variabl
 let origin;
 try { const u = new URL(url); if (u.protocol !== 'https:') throw 0; origin = u.origin; }
 catch { fail('SUPABASE_URL muss eine https-Adresse sein, z. B. https://xyz.supabase.co'); }
-if (/service_role/.test(Buffer.from(key.split('.')[1] || '', 'base64').toString()))
-  fail('SUPABASE_ANON_KEY ist der service_role-Key. Nur den anon/public-Key verwenden!');
+if (key.startsWith('sb_secret_') || /service_role/.test(Buffer.from(key.split('.')[1] || '', 'base64').toString()))
+  fail('SUPABASE_ANON_KEY ist ein geheimer Schlüssel (secret/service_role). Nur den publishable- oder anon-Key verwenden!');
+if (!key.startsWith('sb_publishable_') && !key.startsWith('eyJ'))
+  fail('SUPABASE_ANON_KEY sieht nicht nach einem Supabase-Schlüssel aus (erwartet sb_publishable_… oder eyJ…).');
 
 rmSync(out, { recursive: true, force: true });
 cpSync(src, out, { recursive: true });

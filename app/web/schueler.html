@@ -85,10 +85,14 @@ const SPRINT_MS = 60000, TIPP_MS = 30000, IDLE_MS = 180000;
 (() => { const g = new URLSearchParams(location.hash.slice(1)).get('geraet'); if (g === 'gemeinsam' || g === 'persoenlich') { try { localStorage.setItem(LS_DEVICE, g); if (g === 'gemeinsam') { localStorage.removeItem(LS_TOKEN); localStorage.removeItem(LS_LOGIN); } } catch (e) {} } })();
 const shared = () => { try { return localStorage.getItem(LS_DEVICE) === 'gemeinsam'; } catch (e) { return false; } };
 
+// Neue Schlüssel (sb_publishable_…) sind keine JWTs und gehören nur in den apikey-Header;
+// der alte anon-Key (JWT, eyJ…) wird zusätzlich als Bearer-Token mitgeschickt.
+const API_HEADERS = { apikey: C.supabaseAnonKey, 'Content-Type': 'application/json' };
+if (!/^sb_/.test(C.supabaseAnonKey || '')) API_HEADERS.Authorization = 'Bearer ' + C.supabaseAnonKey;
 async function rpc(fn, args) {
   const r = await fetch(C.supabaseUrl + '/rest/v1/rpc/' + fn, {
     method: 'POST',
-    headers: { apikey: C.supabaseAnonKey, Authorization: 'Bearer ' + C.supabaseAnonKey, 'Content-Type': 'application/json' },
+    headers: API_HEADERS,
     body: JSON.stringify(args)
   });
   if (!r.ok) throw new Error('HTTP ' + r.status);
