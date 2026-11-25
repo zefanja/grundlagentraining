@@ -75,3 +75,34 @@ ok(build(JWT) === 0, 'Build akzeptiert alten anon-Key');
 ok(build('sb_secret_abc') !== 0, 'Build lehnt sb_secret_… ab');
 ok(build(SECRET_JWT) !== 0, 'Build lehnt service_role-Key ab');
 ok(build('irgendwas') !== 0, 'Build lehnt unbekanntes Format ab');
+
+// --- Lehrer-Login: verständliche Fehlermeldungen (echte supabase-js, nachgebaute Server-Antworten) ---
+async function loginWith(respond) {
+  let html = fs.readFileSync(P + 'web/lehrer.html', 'utf8');
+  const inline = (f) => '<script>' + fs.readFileSync(P + 'web/' + f, 'utf8').replace(/<\/script/gi, '<\\/script') + '</script>';
+  html = html.replace('<script src="config.js"></script>', `<script>window.SPRINT_CONFIG={supabaseUrl:"https://x.supabase.co",supabaseAnonKey:${JSON.stringify(PUB)}}</script>`)
+    .replace('<script src="vendor/supabase.js"></script>', () => inline('vendor/supabase.js'))
+    .replace('<script src="vendor/qrcode.js"></script>', () => inline('vendor/qrcode.js'))
+    .replace('<script src="shared.js"></script>', () => inline('shared.js'));
+  const dom = new JSDOM(html, { runScripts: 'dangerously', url: 'https://app.test/lehrer.html', pretendToBeVisual: true, beforeParse(w) {
+    w.fetch = async (url) => { const r = respond(String(url)); if (r instanceof Error) throw r; return new Response(JSON.stringify(r.body), { status: r.status, headers: { 'Content-Type': 'application/json' } }); };
+    w.console.error = () => {}; w.console.warn = () => {};
+  } });
+  const w = dom.window, d = w.document;
+  await sleep(300);
+  d.querySelector('#le').value = 'lehrer@schule.test'; d.querySelector('#lp').value = 'falsch';
+  d.querySelector('#lf').dispatchEvent(new w.Event('submit', { cancelable: true }));
+  await sleep(500);
+  const t = d.body.textContent; w.close(); return t;
+}
+const cases = [
+  ['falsches Passwort', { status: 400, body: { code: 400, error_code: 'invalid_credentials', msg: 'Invalid login credentials' } }, /E-Mail oder Passwort falsch/],
+  ['nicht bestätigt', { status: 400, body: { code: 400, error_code: 'email_not_confirmed', msg: 'Email not confirmed' } }, /noch nicht bestätigt/],
+  ['E-Mail-Login aus', { status: 422, body: { code: 422, error_code: 'email_provider_disabled', msg: 'Email logins are disabled' } }, /E-Mail-Anmeldung ist in Supabase ausgeschaltet/],
+  ['falscher Schlüssel', { status: 401, body: { message: 'Invalid API key', hint: 'Double check your Supabase `anon` or `service_role` API key.' } }, /SUPABASE_ANON_KEY prüfen/],
+  ['nicht erreichbar', new TypeError('Failed to fetch'), /nicht erreichbar/],
+];
+for (const [name, resp, re] of cases) {
+  const t = await loginWith(() => resp);
+  ok(re.test(t), `Lehrer-Login (${name}): ${(t.match(re) || [t.slice(0, 120).replace(/\s+/g, ' ')])[0]}`);
+}
