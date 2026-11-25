@@ -31,11 +31,26 @@ Selbst gehostete Web-App für das Grundaufgaben-Training (1+1, 1·1) in Klasse 5
 
 ## Ablauf mit den Kindern
 
-1. Zugangskarten austeilen. Der QR-Code öffnet die App mit Klassencode und Kürzel, das Kind tippt nur die PIN. Die Anmeldung bleibt 180 Tage gespeichert.
+1. Zugangskarten austeilen. Der QR-Code enthält Klassencode, Kürzel und PIN: Scannen meldet das Kind sofort an (mit der Handykamera oder über „Zugangskarte scannen“ in der App). Auf eigenen Geräten bleibt die Anmeldung 180 Tage gespeichert. Die Karte deshalb wie einen Schlüssel behandeln.
 2. Erster Start: **Tipptest** (30 Sekunden). Daraus berechnet die App das persönliche App-Ziel.
-3. Täglich: **Sprint** (1 Minute) → Ergebnis → **Reparieren** (jede falsche Aufgabe dreimal: anschauen, abdecken, eintippen). Optional **Üben**: jede Aufgabe des Satzes zweimal richtig und schnell.
+3. Im Unterricht: **Unterrichtssprint freigeben** (siehe unten), die Kinder starten den Sprint (1 Minute) → Ergebnis → **Reparieren** (jede falsche Aufgabe dreimal: anschauen, abdecken, eintippen). Optional **Üben**: jede Aufgabe des Satzes zweimal richtig und schnell.
 4. Papier läuft weiter wie bisher: Kontrollsprint am Freitag auf Papier, Wert in der Lehrer-App unter „Papier erfassen“ eintragen.
 5. Satzwechsel entscheidest du in der Lehrer-App („Weiter zu M6“). Die Schüler-App übernimmt den neuen Satz beim nächsten Öffnen.
+
+## Was zählt: Unterrichtssprint statt Üben zu Hause
+
+Für das Kriterium zählen nur Papierwerte und **App-Sprints im Unterrichtsfenster**. Üben zu Hause ist erlaubt und erwünscht, wird gespeichert und angezeigt („geübt“), zählt aber nicht. Das Fenster öffnet sich auf zwei Wegen, eine Codeeingabe gibt es nicht:
+
+- **Freigeben:** In der Lehrer-App „Unterrichtssprint freigeben“ (12 Minuten, verlängerbar). Die Schüler-App zeigt dann „Unterrichtssprint starten“ und prüft alle 30 Sekunden, ob freigegeben ist.
+- **Automatisch:** Unter „Verwalten“ feste Zeiten pro Klasse eintragen (z. B. Montag 07:50, 15 min). In diesen Zeiten zählen Sprints ohne Klick.
+
+Nach dem Ende gibt es 3 Minuten Nachlauf, damit ein laufender Sprint noch zählt. Die Prüfung passiert auf dem Server nach deutscher Zeit; die Uhr des Handys spielt keine Rolle.
+
+## Gemeinsame Geräte (Klassensatz)
+
+- **Feste Zuordnung** (Gerät 7 gehört Kind 7): nichts einstellen, die Anmeldung bleibt gespeichert. Im Kiosk-Modus darf der Browser-Speicher (localStorage) für die App-Adresse dann nicht gelöscht werden.
+- **Wechselnde Kinder:** Einmal pro Gerät `schueler.html#geraet=gemeinsam` öffnen. Dann wird nichts gespeichert, das Kind meldet sich per Karte an und ist nach „Fertig“ (oder 3 Minuten ohne Aktivität) wieder abgemeldet. Zurück mit `#geraet=persoenlich`.
+- Die Kamera-Anmeldung braucht HTTPS und einen Browser mit Kamerazugriff.
 
 ## Papier und App vergleichen
 

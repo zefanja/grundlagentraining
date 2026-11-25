@@ -103,6 +103,14 @@ create table if not exists public.attempts (
 );
 create index if not exists attempts_student_t on public.attempts(student_id, created_at);
 
+-- Erweiterung v2: Unterrichtsfenster (gezählte App-Sprints nur im Unterricht)
+-- Zwei Wege: Lehrkraft gibt frei (window_until) oder feste Zeiten pro Klasse (schedule).
+-- Die ALTER-Befehle machen das Skript auch für bestehende Installationen nutzbar.
+alter table public.classes add column if not exists window_until timestamptz;
+alter table public.classes add column if not exists schedule jsonb not null default '[]'::jsonb;  -- [{dow:1..7, start:'07:50', min:15}]
+alter table public.sprints add column if not exists in_class boolean not null default false;
+update public.sprints set in_class = true where medium = 'papier' and not in_class;
+
 -- ---------------------------------------------------------------------
 -- Zeilenschutz (RLS): Lehrkräfte sehen nur eigene Klassen
 -- ---------------------------------------------------------------------
@@ -148,6 +156,25 @@ language sql stable security definer set search_path = public as $$
   select student_id from sessions where token = p_token and expires_at > now()
 $$;
 
+-- Ist für die Klasse gerade Unterrichtszeit? (Freigabe oder Stundenplan, deutsche Zeit)
+create or replace function public.class_window_open(p_class uuid, p_grace interval default interval '0')
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from classes c
+     where c.id = p_class
+       and ( coalesce(c.window_until + p_grace > now(), false)
+          or exists (
+               select 1 from jsonb_array_elements(case when jsonb_typeof(c.schedule) = 'array' then c.schedule else '[]'::jsonb end) e
+                where case when coalesce(e->>'dow', '') ~ '^[1-7]$'
+                             and coalesce(e->>'start', '') ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+                             and coalesce(e->>'min', '') ~ '^[0-9]{1,3}$'
+                           then (e->>'dow')::int = extract(isodow from (now() at time zone 'Europe/Berlin'))::int
+                            and (now() at time zone 'Europe/Berlin')::time >= (e->>'start')::time
+                            and (now() at time zone 'Europe/Berlin') < (date_trunc('day', now() at time zone 'Europe/Berlin') + (e->>'start')::time
+                                                                         + make_interval(mins => (e->>'min')::int) + p_grace)
+                           else false end)))
+$$;
+
 -- ---------------------------------------------------------------------
 -- Schüler-Funktionen (anonym aufrufbar, geschützt durch PIN bzw. Token)
 -- ---------------------------------------------------------------------
@@ -190,8 +217,9 @@ begin
     'grp', s.grp, 'write_rate', s.write_rate, 'tap_rate', s.tap_rate,
     'goal_paper', s.goal_paper, 'goal_app', s.goal_app, 'done', s.done,
     'today', local_today(),
+    'window_open', class_window_open(c.id),
     'recent', (select coalesce(json_agg(x order by x.created_at), '[]'::json) from (
-                 select d, set_id, correct, errors, medium, created_at from sprints
+                 select d, set_id, correct, errors, medium, in_class, created_at from sprints
                   where student_id = s.id and mode = 'sprint'
                   order by created_at desc limit 40) x)
   ) into r
@@ -199,10 +227,12 @@ begin
   return r;
 end $$;
 
+drop function if exists public.student_save(text,text,text,int,int,jsonb);
 create or replace function public.student_save(
-  p_token text, p_mode text, p_set text, p_correct int, p_errors int, p_attempts jsonb default '[]'::jsonb)
+  p_token text, p_mode text, p_set text, p_correct int, p_errors int,
+  p_attempts jsonb default '[]'::jsonb)
 returns json language plpgsql security definer set search_path = public as $$
-declare sid uuid := _sid(p_token); spr bigint; n_today int;
+declare sid uuid := _sid(p_token); spr bigint; n_today int; inc boolean := false;
 begin
   if sid is null then return json_build_object('error', 'session'); end if;
   if p_mode not in ('sprint','ueben','tipp') then return json_build_object('error', 'mode'); end if;
@@ -210,8 +240,13 @@ begin
   select count(*) into n_today from sprints where student_id = sid and d = local_today() and medium = 'app';
   if n_today >= 80 then return json_build_object('error', 'limit'); end if;
 
-  insert into sprints(student_id, set_id, correct, errors, kind, medium, mode)
-  values (sid, p_set, least(greatest(coalesce(p_correct,0),0),600), least(greatest(coalesce(p_errors,0),0),300), 'T', 'app', p_mode)
+  -- Gezählt (in_class) nur während Freigabe oder Stundenplan-Fenster (+3 Minuten für Sprint und Reparatur)
+  if p_mode = 'sprint' then
+    select class_window_open(st.class_id, interval '3 minutes') into inc from students st where st.id = sid;
+  end if;
+
+  insert into sprints(student_id, set_id, correct, errors, kind, medium, mode, in_class)
+  values (sid, p_set, least(greatest(coalesce(p_correct,0),0),600), least(greatest(coalesce(p_errors,0),0),300), 'T', 'app', p_mode, inc)
   returning id into spr;
 
   if p_mode = 'tipp' then
@@ -225,8 +260,10 @@ begin
       from (select * from jsonb_to_recordset(p_attempts) as t(f text, s text, g int, ok boolean, ms int) limit 400) x
      where x.f is not null;
   end if;
-  return json_build_object('ok', true, 'id', spr);
+  return json_build_object('ok', true, 'id', spr, 'in_class', inc);
 end $$;
+
+drop function if exists public.student_check_code(text,text);
 
 create or replace function public.student_logout(p_token text)
 returns json language sql security definer set search_path = public as $$
@@ -248,6 +285,30 @@ begin
   return json_build_object('ok', true);
 end $$;
 
+-- Unterrichtssprint freigeben: App-Sprints der Klasse zählen für p_minutes Minuten
+drop function if exists public.teacher_open_window(uuid, int, boolean);
+create or replace function public.teacher_open_window(p_class uuid, p_minutes int default 12)
+returns json language plpgsql security definer set search_path = public as $$
+declare u timestamptz;
+begin
+  if not exists (select 1 from classes where id = p_class and teacher = auth.uid()) then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  u := now() + make_interval(mins => least(greatest(coalesce(p_minutes, 12), 1), 45));
+  update classes set window_until = u where id = p_class;
+  return json_build_object('until', u);
+end $$;
+
+create or replace function public.teacher_close_window(p_class uuid)
+returns json language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from classes where id = p_class and teacher = auth.uid()) then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  update classes set window_until = now() where id = p_class and window_until > now();
+  return json_build_object('ok', true);
+end $$;
+
 -- Papierwert eintragen (null + null = löschen)
 create or replace function public.teacher_paper(
   p_student uuid, p_d date, p_kind text, p_set text, p_correct int, p_errors int)
@@ -256,8 +317,8 @@ begin
   if p_correct is null and p_errors is null then
     delete from sprints where student_id = p_student and d = p_d and kind = p_kind and medium = 'papier';
   else
-    insert into sprints(student_id, d, set_id, correct, errors, kind, medium, mode)
-    values (p_student, p_d, p_set, coalesce(p_correct, 0), coalesce(p_errors, 0), p_kind, 'papier', 'sprint')
+    insert into sprints(student_id, d, set_id, correct, errors, kind, medium, mode, in_class)
+    values (p_student, p_d, p_set, coalesce(p_correct, 0), coalesce(p_errors, 0), p_kind, 'papier', 'sprint', true)
     on conflict (student_id, d, kind) where medium = 'papier'
     do update set correct = excluded.correct, errors = excluded.errors;
   end if;
@@ -281,6 +342,7 @@ $$;
 -- Rechte
 -- ---------------------------------------------------------------------
 revoke all on function public._sid(text) from public, anon, authenticated;
+revoke all on function public.class_window_open(uuid, interval) from public, anon, authenticated;
 revoke all on function public.owns_student(uuid) from public, anon;
 grant execute on function public.owns_student(uuid) to authenticated;
 
@@ -296,9 +358,13 @@ grant execute on function public.student_logout(text) to anon, authenticated;
 revoke all on function public.teacher_set_pin(uuid,text) from public, anon;
 revoke all on function public.teacher_paper(uuid,date,text,text,int,int) from public, anon;
 revoke all on function public.teacher_fact_stats(uuid,uuid,int) from public, anon;
+revoke all on function public.teacher_open_window(uuid,int) from public, anon;
+revoke all on function public.teacher_close_window(uuid) from public, anon;
 grant execute on function public.teacher_set_pin(uuid,text) to authenticated;
 grant execute on function public.teacher_paper(uuid,date,text,text,int,int) to authenticated;
 grant execute on function public.teacher_fact_stats(uuid,uuid,int) to authenticated;
+grant execute on function public.teacher_open_window(uuid,int) to authenticated;
+grant execute on function public.teacher_close_window(uuid) to authenticated;
 
 -- Anonyme Nutzer brauchen keinen Tabellenzugriff
 revoke all on public.classes, public.students, public.student_secrets, public.sessions, public.sprints, public.attempts from anon;

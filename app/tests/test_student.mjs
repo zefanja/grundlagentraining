@@ -63,4 +63,32 @@ ok(d.body.textContent.includes('Anschauen'),'repair view');
 press('ok'); await sleep(50);
 ok(d.body.textContent.includes('aus dem Kopf'),'repair ask');
 ok(errs.length===0,'no script errors '+errs.join('|'));
+
+// ---- Teil 2: QR-Link mit PIN, gemeinsames Gerät, Unterrichtssprint ----
+const win=(await as('authenticated',T1,`select teacher_open_window($1,12) j`,[cls.id]))[0].j;
+const dom2=new JSDOM(html,{runScripts:'dangerously',url:'https://app.test/schueler.html#k='+cls.join_code+'&c=07&p=2468&geraet=gemeinsam',pretendToBeVisual:true,beforeParse(w){
+  let clock=0; w.__clock=v=>clock=v; w.__adv=d=>clock+=d; w.performance.now=()=>clock;
+  w.requestAnimationFrame=cb=>setTimeout(()=>cb(clock),5); w.cancelAnimationFrame=id=>clearTimeout(id);
+  w.fetch=async(url,opts)=>{const fn=url.split('/rpc/')[1];const a=JSON.parse(opts.body);const keys=Object.keys(a);
+    const sql=`select public.${fn}(${keys.map((k,i)=>k+'=>$'+(i+1)+(k==='p_attempts'?'::jsonb':'')).join(',')}) j`;
+    const vals=keys.map(k=>k==='p_attempts'?JSON.stringify(a[k]):a[k]);
+    const rows=await as('anon',null,sql,vals); return {ok:true,status:200,json:async()=>rows[0].j};};
+}});
+const w2=dom2.window,d2=w2.document;const errs2=[];w2.addEventListener('error',e=>errs2.push(e.message));
+const press2=k=>{const b=d2.querySelector(`.pad button[data-k="${k}"]`);if(!b)throw new Error('no key '+k+' in '+d2.body.textContent.slice(0,80));b.dispatchEvent(new w2.MouseEvent('pointerdown',{bubbles:true}))};
+await sleep(700);
+ok(d2.body.textContent.includes('Hallo 07'),'Auto-Login über QR-Link mit PIN');
+ok(!w2.location.hash.includes('p='),'PIN aus der Adresszeile entfernt');
+ok(w2.localStorage.getItem('st-token')===null,'gemeinsames Gerät speichert keine Anmeldung');
+ok(d2.body.textContent.includes('Unterrichtssprint ist freigegeben'),'Freigabe-Karte sichtbar, keine Codeeingabe');
+w2.__clock(0);
+d2.querySelector('#cls').click(); await sleep(2900);
+for(let i=0;i<4;i++){ const t=d2.querySelector('#prob').textContent.split(' =')[0]; w2.__adv(1200); for(const ch of String(solve(t))) press2(ch); press2('ok'); }
+w2.__adv(60001); await sleep(600);
+ok(d2.body.textContent.includes('zählt als Unterrichtssprint'),'Ergebnis: zählt als Unterrichtssprint');
+const ic=await db.query(`select in_class, correct from sprints where mode='sprint' and medium='app' order by id desc limit 1`);
+ok(ic.rows[0].in_class===true&&ic.rows[0].correct===4,'DB: in_class '+JSON.stringify(ic.rows[0]));
+d2.querySelector('#home').click(); await sleep(400);
+ok(d2.body.textContent.includes('PIN eintippen'),'nach Fertig abgemeldet (gemeinsames Gerät)');
+ok(errs2.length===0,'keine Skriptfehler Teil 2 '+errs2.join('|'));
 process.exit();

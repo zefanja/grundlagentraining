@@ -12,7 +12,9 @@ create role anon nologin; create role authenticated nologin;
 grant usage on schema public, extensions, auth to anon, authenticated;
 grant execute on function auth.uid() to anon, authenticated;
 `);
-await db.exec(fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url),'utf8'));
+const SCHEMA=fs.readFileSync(new URL('../supabase/schema.sql', import.meta.url),'utf8');
+await db.exec(SCHEMA);
+await db.exec(SCHEMA); // zweimal: Skript muss für bestehende Installationen wiederholbar sein
 const as = async (role, uid, sql, params=[]) => {
   await db.exec(`reset role; select set_config('request.jwt.claim.sub','${uid||''}',false); set role ${role};`);
   try { return (await db.query(sql, params)).rows; } finally { await db.exec('reset role'); }
@@ -80,6 +82,39 @@ e=null; try{ await as('anon',null,`select _sid($1)`,[r.token]) }catch(x){e=x}
 ok(!!e,'anon cannot call _sid');
 e=null; try{ await as('anon',null,`select teacher_set_pin($1,'1111')`,[st[0].id]) }catch(x){e=x}
 ok(!!e,'anon cannot call teacher_set_pin');
+
+// ---- Unterrichtsfenster ----
+const tok2=r.token;
+let sv=(await as('anon',null,`select student_save($1,'sprint','M4',20,1,'[]'::jsonb) j`,[tok2]))[0].j;
+ok(sv.ok&&sv.in_class===false,'ohne Freigabe: Übung');
+ok((await as('anon',null,`select student_state($1) j`,[tok2]))[0].j.window_open===false,'window_open false');
+e=null; try{ await as('authenticated',T2,`select teacher_open_window($1)`,[cls.id]) }catch(x){e=x}
+ok(!!e,'teacher2 kann nicht freigeben');
+const w=(await as('authenticated',T1,`select teacher_open_window($1,12) j`,[cls.id]))[0].j;
+ok(!!w.until,'Freigabe bis '+w.until);
+ok((await as('anon',null,`select student_state($1) j`,[tok2]))[0].j.window_open===true,'window_open true');
+sv=(await as('anon',null,`select student_save($1,'sprint','M4',25,0,'[]'::jsonb) j`,[tok2]))[0].j;
+ok(sv.in_class===true,'Sprint während Freigabe zählt');
+sv=(await as('anon',null,`select student_save($1,'ueben','M4',25,0,'[]'::jsonb) j`,[tok2]))[0].j;
+ok(sv.in_class===false,'Üben zählt nie');
+await as('authenticated',T1,`select teacher_close_window($1)`,[cls.id]);
+sv=(await as('anon',null,`select student_save($1,'sprint','M4',25,0,'[]'::jsonb) j`,[tok2]))[0].j;
+ok(sv.in_class===true,'Nachlauf 3 Minuten nach Beenden');
+await db.exec(`update classes set window_until = now() - interval '4 minutes'`);
+sv=(await as('anon',null,`select student_save($1,'sprint','M4',25,0,'[]'::jsonb) j`,[tok2]))[0].j;
+ok(sv.in_class===false,'nach Nachlauf: Übung');
+// Stundenplan: jetzt (deutsche Zeit) liegt im Fenster
+await as('authenticated',T1,`update classes set schedule = jsonb_build_array(jsonb_build_object('dow', extract(isodow from now() at time zone 'Europe/Berlin')::int, 'start', to_char((now() at time zone 'Europe/Berlin') - interval '5 minutes','HH24:MI'), 'min', 15)) where id=$1`,[cls.id]);
+ok((await as('anon',null,`select student_state($1) j`,[tok2]))[0].j.window_open===true,'Stundenplan-Fenster offen');
+sv=(await as('anon',null,`select student_save($1,'sprint','M4',25,0,'[]'::jsonb) j`,[tok2]))[0].j;
+ok(sv.in_class===true,'Sprint im Stundenplan-Fenster zählt');
+await as('authenticated',T1,`update classes set schedule = jsonb_build_array(jsonb_build_object('dow', (extract(isodow from now() at time zone 'Europe/Berlin')::int % 7) + 1, 'start', '07:50', 'min', 15)) where id=$1`,[cls.id]);
+ok((await as('anon',null,`select student_state($1) j`,[tok2]))[0].j.window_open===false,'anderer Wochentag: zu');
+await as('authenticated',T1,`update classes set schedule = '[{"dow":"x","start":"25:99","min":"viel"}, 7]'::jsonb where id=$1`,[cls.id]);
+sv=(await as('anon',null,`select student_save($1,'sprint','M4',25,0,'[]'::jsonb) j`,[tok2]))[0].j;
+ok(sv.ok&&sv.in_class===false,'kaputter Stundenplan bricht nichts');
+await as('authenticated',T1,`select teacher_paper($1,'2026-11-20','K','M4',30,0)`,[st[0].id]);
+ok((await as('authenticated',T1,`select in_class from sprints where medium='papier'`))[0].in_class===true,'Papier zählt immer');
 // delete class cascades
 await as('authenticated',T1,`delete from classes where id=$1`,[cls.id]);
 ok((await db.query(`select count(*)::int n from sprints`)).rows[0].n===0,'cascade delete');

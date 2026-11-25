@@ -27,6 +27,8 @@ Gezählt werden **richtige Aufgaben pro Minute**: letzte bearbeitete Zeile × 4,
 
 Papier- und App-Werte werden getrennt geführt und nicht direkt verglichen.
 
+Für das Kriterium zählen nur Papierwerte und App-Sprints im **Unterrichtsfenster**: Die Lehrkraft gibt per Klick frei, oder feste Zeiten pro Klasse öffnen das Fenster automatisch. Üben zu Hause wird gespeichert, zählt aber nicht.
+
 ## Automatisierung (GitHub Actions)
 
 Bei jedem Push und Pull Request:

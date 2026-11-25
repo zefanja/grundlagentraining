@@ -85,6 +85,12 @@ svg text{font:13px system-ui,sans-serif;fill:var(--muted);paint-order:stroke;str
 #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}
 #toast.show{opacity:1}
 #print{display:none}
+#win{position:fixed;inset:0;background:var(--teal);color:#fff;z-index:40;display:flex;align-items:center;justify-content:center;padding:16px}
+#win[hidden]{display:none}
+#win .wbox{text-align:center}
+#win .wcode{font-size:clamp(96px,22vw,240px);font-weight:700;letter-spacing:.12em;line-height:1;margin:16px 0;font-variant-numeric:tabular-nums}
+#win .wl{font-size:clamp(18px,2.4vw,26px);opacity:.92}
+#win button{font-size:18px}
 @media(prefers-reduced-motion:reduce){#toast{transition:none}}
 @media(max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}.hide-s{display:none}}
 @media(max-width:600px){td,th{padding:6px 4px}input[type=number]{width:4.2em}}
@@ -103,7 +109,7 @@ svg text{font:13px system-ui,sans-serif;fill:var(--muted);paint-order:stroke;str
 <header class="band">
   <div class="top">
     <div><h1>Sprint-Tracker</h1><div class="sub">Grundaufgaben 1+1 und 1·1 · Papier und App</div></div>
-    <div class="bar" style="margin:0"><label class="small" for="f-cls">Klasse</label><select id="f-cls"></select><button class="sm" id="logout" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.5)">Abmelden</button></div>
+    <div class="bar" style="margin:0"><button class="sm" id="win-open" style="background:#fff;color:var(--teal);border-color:#fff;font-weight:600">Unterrichtssprint freigeben</button><label class="small" for="f-cls">Klasse</label><select id="f-cls"></select><button class="sm" id="logout" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.5)">Abmelden</button></div>
   </div>
   <div class="figs" id="figs"></div>
 </header>
@@ -119,6 +125,12 @@ svg text{font:13px system-ui,sans-serif;fill:var(--muted);paint-order:stroke;str
 </div>
 <div id="modal" hidden><div class="box"><p></p><div class="bar" style="justify-content:flex-end;margin:0"><button class="no">Abbrechen</button><button class="ok pri">OK</button></div></div></div>
 <div id="toast" role="status"></div>
+<div id="win" hidden><div class="wbox">
+  <div class="wl">Unterrichtssprint ist freigegeben</div>
+  <div class="wcode" id="w-code" style="font-size:clamp(56px,11vw,128px);letter-spacing:0">Sprint starten!</div>
+  <div class="wl">freigegeben noch <b id="w-left">--:--</b> · <b id="w-n">0</b> von <b id="w-of">0</b> abgegeben</div>
+  <div class="bar" style="justify-content:center;margin-top:20px"><button id="w-plus">+5 Minuten</button><button class="pri" id="w-close">Beenden</button></div>
+</div></div>
 <div id="print"></div>
 <script src="config.js"></script>
 <script src="vendor/supabase.js"></script>
@@ -131,6 +143,7 @@ const S = window.ST;
 const $ = q => document.querySelector(q);
 const esc = S.esc, fmt = S.fmtDate, today = S.today, dnum = S.dnum, addDays = S.addDays;
 const CHECKS = [7, 14, 28];
+const DOW = { 1: 'Montag', 2: 'Dienstag', 3: 'Mittwoch', 4: 'Donnerstag', 5: 'Freitag', 6: 'Samstag', 7: 'Sonntag' };
 const sb = window.supabase && C.supabaseUrl ? window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey) : null;
 
 let ui = { view: 'erfassen', cls: null, date: today(), kind: 'T', stu: null, days: 30, op: 'M' };
@@ -174,7 +187,7 @@ async function loadClass() {
   if (!ui.cls) return;
   students = await q(sb.from('students').select('*').eq('class_id', ui.cls).order('code'), 'Kinder');
   const ids = students.map(s => s.id);
-  if (ids.length) sprints = await fetchAll(() => sb.from('sprints').select('id,student_id,d,set_id,correct,errors,kind,medium,mode,created_at').in('student_id', ids).gte('d', addDays(today(), -400)).order('d').order('created_at'));
+  if (ids.length) sprints = await fetchAll(() => sb.from('sprints').select('id,student_id,d,set_id,correct,errors,kind,medium,mode,in_class,created_at').in('student_id', ids).gte('d', addDays(today(), -400)).order('d').order('created_at'));
 }
 
 /* ---------- Berechnungen ---------- */
@@ -184,7 +197,8 @@ const rowsOf = sid => sprints.filter(r => r.student_id === sid);
 function dueChecks(s) { const out = []; (s.done || []).forEach(x => { const n = (x.checks || []).length; if (n < CHECKS.length) { const dd = addDays(x.d, CHECKS[n]); if (dd <= today()) out.push({ set: x.set, d: dd }); } }); return out; }
 function status(s) {
   const rows = rowsOf(s.id).filter(r => r.mode === 'sprint');
-  const cur = rows.filter(r => r.set_id === s.set_id && r.d >= s.since);
+  const counted = rows.filter(r => r.medium === 'papier' || r.in_class);
+  const cur = counted.filter(r => r.set_id === s.set_id && r.d >= s.since);
   const gP = S.goalPaper(s), gA = S.goalApp(s);
   const last2 = m => cur.filter(r => r.medium === m).slice(-2);
   const met = m => { const l = last2(m), g = m === 'app' ? gA : gP; return s.stage === 2 && l.length === 2 && l.every(r => r.correct >= g && r.errors <= 2); };
@@ -193,8 +207,8 @@ function status(s) {
   const st = { rows, cur, gP, gA, days, metP: met('papier'), metA: met('app'), acc: acc('papier') || acc('app') };
   st.met = st.metP || st.metA; st.stall = !st.met && !st.acc && days >= 14; st.due = dueChecks(s);
   st.lastP = rows.filter(r => r.medium === 'papier').slice(-1)[0] || null;
-  st.lastA = rows.filter(r => r.medium === 'app').slice(-1)[0] || null;
-  st.app7 = rows.filter(r => r.medium === 'app' && dnum(today()) - dnum(r.d) < 7).length;
+  st.lastA = rows.filter(r => r.medium === 'app' && r.in_class).slice(-1)[0] || null;
+  st.home7 = rows.filter(r => r.medium === 'app' && !r.in_class && dnum(today()) - dnum(r.d) < 7).length;
   return st;
 }
 function hints(s, st, btn) {
@@ -217,8 +231,8 @@ function renderHeader() {
   if (cls()) {
     const st = students.map(status);
     const entered = students.filter(s => sprints.some(r => r.student_id === s.id && r.d === ui.date && r.kind === ui.kind && r.medium === 'papier')).length;
-    const appToday = new Set(sprints.filter(r => r.medium === 'app' && r.mode === 'sprint' && r.d === today()).map(r => r.student_id)).size;
-    f = [[entered + ' / ' + students.length, 'Papier eingetragen (' + fmt(ui.date) + ')'], [appToday + ' / ' + students.length, 'heute in der App'], [st.filter(x => x.met || x.acc).length, 'Kriterium erreicht'], [st.filter(x => x.stall).length, 'Stillstand ≥ 14 Tage'], [st.reduce((a, x) => a + x.due.length, 0), 'Kontrollen fällig']];
+    const appToday = new Set(sprints.filter(r => r.medium === 'app' && r.mode === 'sprint' && r.in_class && r.d === today()).map(r => r.student_id)).size;
+    f = [[entered + ' / ' + students.length, 'Papier eingetragen (' + fmt(ui.date) + ')'], [appToday + ' / ' + students.length, 'heute Unterrichtssprint (App)'], [st.filter(x => x.met || x.acc).length, 'Kriterium erreicht'], [st.filter(x => x.stall).length, 'Stillstand ≥ 14 Tage'], [st.reduce((a, x) => a + x.due.length, 0), 'Kontrollen fällig']];
   }
   $('#figs').innerHTML = f.map(([n, l]) => `<div class="fig-c"><div class="fig-n">${esc(n)}</div><div class="fig-l">${esc(l)}</div></div>`).join('');
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.dataset.v === ui.view));
@@ -249,9 +263,9 @@ function viewKlasse() {
   const counts = {}; students.forEach(s => counts[s.set_id] = (counts[s.set_id] || 0) + 1);
   const mx = Math.max(...Object.values(counts));
   const bars = S.IDS.filter(id => counts[id]).map(id => `<div class="rowbar"><span class="set">${id}</span><div><div class="b" style="width:${counts[id] / mx * 100}%" title="${esc(S.setName(id))}"></div></div><span class="num">${counts[id]}</span></div>`).join('');
-  const rows = list.map(({ s, st }) => `<tr><td class="code"><a href="#schueler" data-act="stu" data-sid="${esc(s.id)}">${esc(s.code)}</a></td><td>${esc(s.grp)}</td><td><span class="set">${esc(s.set_id)}</span> <span class="muted small">${s.stage === 1 ? 'Akquisition' : 'Flüssigkeit'}</span></td><td class="num">${st.days}</td><td class="num">${st.lastP ? st.lastP.correct + ' / ' + st.gP : '– / ' + st.gP}</td><td class="num app">${st.lastA ? st.lastA.correct + ' / ' + st.gA : '–'}</td><td class="num">${st.app7}</td><td>${hints(s, st, true)}</td></tr>`).join('');
-  return `<div class="grid2" style="margin-bottom:24px"><div class="panel"><h3>Kinder pro Satz</h3>${bars}</div><div class="panel"><h3>So liest du die Tabelle</h3><p class="small">„Tage“ zählt seit Beginn des aktuellen Satzes bzw. der Stufe. Papier und App stehen getrennt, jeweils letzter Wert / Ziel. „App 7 T.“ = Sprints in der App in den letzten 7 Tagen.</p><button data-act="csv">Klasse als CSV exportieren</button></div></div>
-  <div class="scroll"><table><thead><tr><th>Kürzel</th><th>Gr.</th><th>Satz · Stufe</th><th class="num">Tage</th><th class="num">Papier</th><th class="num">App</th><th class="num">App 7 T.</th><th>Hinweise</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const rows = list.map(({ s, st }) => `<tr><td class="code"><a href="#schueler" data-act="stu" data-sid="${esc(s.id)}">${esc(s.code)}</a></td><td>${esc(s.grp)}</td><td><span class="set">${esc(s.set_id)}</span> <span class="muted small">${s.stage === 1 ? 'Akquisition' : 'Flüssigkeit'}</span></td><td class="num">${st.days}</td><td class="num">${st.lastP ? st.lastP.correct + ' / ' + st.gP : '– / ' + st.gP}</td><td class="num app">${st.lastA ? st.lastA.correct + ' / ' + st.gA : '–'}</td><td class="num">${st.home7}</td><td>${hints(s, st, true)}</td></tr>`).join('');
+  return `<div class="grid2" style="margin-bottom:24px"><div class="panel"><h3>Kinder pro Satz</h3>${bars}</div><div class="panel"><h3>So liest du die Tabelle</h3><p class="small">„Tage“ zählt seit Beginn des aktuellen Satzes bzw. der Stufe. Papier und App stehen getrennt, jeweils letzter Wert / Ziel. Für das Kriterium zählen nur Papier und App-Sprints im Unterrichtsfenster. „Geübt 7 T.“ = freiwillige App-Sprints außerhalb des Unterrichts in den letzten 7 Tagen.</p><button data-act="csv">Klasse als CSV exportieren</button></div></div>
+  <div class="scroll"><table><thead><tr><th>Kürzel</th><th>Gr.</th><th>Satz · Stufe</th><th class="num">Tage</th><th class="num">Papier</th><th class="num">App (Unterricht)</th><th class="num">Geübt 7 T.</th><th>Hinweise</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function viewSchueler() {
   if (!students.length) return '<div class="empty">Noch keine Kinder in dieser Klasse.</div>';
@@ -260,10 +274,10 @@ function viewSchueler() {
   const opts = students.map(x => `<option value="${esc(x.id)}"${x.id === s.id ? ' selected' : ''}>${esc(x.code)}</option>`).join('');
   const done = (s.done || []).slice().reverse().map(x => { const n = (x.checks || []).length, next = n < CHECKS.length ? addDays(x.d, CHECKS[n]) : null; return `<tr><td class="set">${esc(x.set)}</td><td>${fmt(x.d)}</td><td>${n} / 3</td><td>${next ? (next <= today() ? '<span class="chip info">fällig</span> ' : '') + fmt(next) : '<span class="chip ok">gesichert</span>'}</td><td>${next ? `<button class="sm" data-act="chk" data-set="${esc(x.set)}" data-r="1">bestanden</button> <button class="sm warn" data-act="chk" data-set="${esc(x.set)}" data-r="0">nicht bestanden</button>` : ''}</td></tr>`; }).join('');
   const diag = (s.diag || []).map((d, i) => `<tr><td>${esc(d.label)}</td><td>${fmt(d.d)}</td><td class="num">${d.add ?? '–'}</td><td class="num">${d.sub ?? '–'}</td><td class="num">${d.mul ?? '–'}</td><td class="num">${d.div ?? '–'}</td><td><button class="sm warn" data-act="deldiag" data-i="${i}" aria-label="Löschen">✕</button></td></tr>`).join('');
-  const ent = rowsOf(s.id).slice().reverse().slice(0, 40).map(r => `<tr><td>${fmt(r.d)}</td><td>${r.medium === 'app' ? '<span class="app">App</span>' : 'Papier'}${r.kind === 'K' ? ' · Kontrolle' : ''}${r.mode !== 'sprint' ? ' · ' + (r.mode === 'tipp' ? 'Tipptest' : 'Üben') : ''}</td><td class="set">${esc(r.set_id)}</td><td class="num">${r.correct}</td><td class="num">${r.errors}</td><td><button class="sm warn" data-act="delrow" data-id="${r.id}" aria-label="Eintrag löschen">✕</button></td></tr>`).join('');
+  const ent = rowsOf(s.id).slice().reverse().slice(0, 40).map(r => `<tr><td>${fmt(r.d)}</td><td>${r.medium === 'app' ? '<span class="app">App</span>' + (r.mode === 'sprint' ? (r.in_class ? ' · Unterricht' : ' · geübt') : '') : 'Papier'}${r.kind === 'K' ? ' · Kontrolle' : ''}${r.mode !== 'sprint' ? ' · ' + (r.mode === 'tipp' ? 'Tipptest' : 'Üben') : ''}</td><td class="set">${esc(r.set_id)}</td><td class="num">${r.correct}</td><td class="num">${r.errors}</td><td><button class="sm warn" data-act="delrow" data-id="${r.id}" aria-label="Eintrag löschen">✕</button></td></tr>`).join('');
   return `<div class="bar"><select id="f-stu" aria-label="Kind">${opts}</select><span><span class="set">${esc(s.set_id)}</span> ${esc(S.setName(s.set_id))} · ${s.stage === 1 ? 'Akquisition' : 'Flüssigkeit'} seit ${fmt(s.since)}</span><span class="muted">Gruppe ${esc(s.grp)} · Ziel Papier ${st.gP} · <span class="app">Ziel App ${st.gA}</span></span></div>
   <div class="bar">${hints(s, st, true)} ${s.stage === 1 && !st.acc ? `<button class="sm" data-act="stage" data-sid="${esc(s.id)}">Manuell: weiter zu Flüssigkeit</button>` : ''} ${!st.met ? `<button class="sm" data-act="set" data-sid="${esc(s.id)}">Manuell: Satz abschließen</button>` : ''}</div>
-  <div class="panel" style="margin-bottom:24px"><h3>Richtige Aufgaben pro Minute</h3><div><span class="key"><i style="background:var(--teal)"></i>Papier</span><span class="key"><i style="background:var(--app)"></i>App</span><span class="key">gestrichelt: Ziele · senkrecht: Satzwechsel</span></div><div class="fig"><svg id="chart" role="img" aria-label="Verlauf der Sprintwerte"></svg></div></div>
+  <div class="panel" style="margin-bottom:24px"><h3>Richtige Aufgaben pro Minute</h3><div><span class="key"><i style="background:var(--teal)"></i>Papier</span><span class="key"><i style="background:var(--app)"></i>App</span><span class="key">○ in der App geübt (zählt nicht)</span><span class="key">gestrichelt: Ziele · senkrecht: Satzwechsel</span></div><div class="fig"><svg id="chart" role="img" aria-label="Verlauf der Sprintwerte"></svg></div></div>
   <div class="grid2">
     <div><h3>Schwächste Aufgaben in der App (60 Tage)</h3><div id="stufacts" class="muted small">Lädt…</div>
       <h3 style="margin-top:24px">Abgeschlossene Sätze und Kontrollen</h3>${done ? `<div class="scroll"><table><thead><tr><th>Satz</th><th>Abgeschlossen</th><th>Kontrollen</th><th>Nächste</th><th></th></tr></thead><tbody>${done}</tbody></table></div>` : '<p class="muted">Noch kein Satz abgeschlossen.</p>'}
@@ -323,6 +337,11 @@ function viewVerwalten() {
   <div><h2>Datenschutz</h2><p class="note">Nur Kürzel oder Nummern eintragen, keine Namen. Die Zuordnung Kürzel → Name bleibt im Notenbuch. PINs werden nur verschlüsselt gespeichert und sind nach dem Neuladen nicht mehr sichtbar: Zugangskarten deshalb direkt nach dem Erzeugen drucken.</p>
     <div class="bar"><button data-act="csv">Klasse als CSV</button></div></div></div>
   ${c ? `<h2 style="margin-top:32px">Kinder in ${esc(c.name)} <span class="muted small">· Klassencode ${esc(c.join_code)}</span></h2>
+  <div class="panel" style="margin:12px 0 20px"><h3>Automatische Freigabe (Stundenplan)</h3>
+    <p class="muted small">In diesen Zeiten zählen App-Sprints der Klasse automatisch als Unterrichtssprint, ohne dass du freigeben musst. Deutsche Zeit, nach Ende noch 3 Minuten Nachlauf.</p>
+    ${(c.schedule || []).length ? `<table style="width:auto"><tbody>${(c.schedule || []).map((e, i) => `<tr><td>${esc(DOW[e.dow] || '?')}</td><td class="num">${esc(e.start)}</td><td class="num">${esc(e.min)} min</td><td><button class="sm warn" data-act="delsched" data-i="${i}" aria-label="Zeit entfernen">✕</button></td></tr>`).join('')}</tbody></table>` : '<p class="small">Noch keine festen Zeiten.</p>'}
+    <div class="bar" style="margin:10px 0 0"><select id="s-dow" aria-label="Wochentag">${[1, 2, 3, 4, 5].map(d => `<option value="${d}">${DOW[d]}</option>`).join('')}</select><input type="time" id="s-start" value="07:50" aria-label="Beginn"><input type="number" id="s-min" value="15" min="1" max="90" aria-label="Dauer in Minuten"><span class="small muted">min</span><button data-act="addsched">Zeit hinzufügen</button></div>
+  </div>
   <div class="bar"><button class="pri" data-act="pins-missing">PINs für alle ohne PIN erzeugen</button><button data-act="pins-all">Alle PINs neu erzeugen</button><button data-act="cards" ${Object.keys(pins).length ? '' : 'disabled'}>Zugangskarten drucken (${students.filter(s => pins[s.id]).length})</button></div>
   <div class="scroll"><table id="stutab"><thead><tr><th>Kürzel</th><th>Gr.</th><th class="num">Schreib&shy;tempo</th><th class="num">Tipp&shy;tempo</th><th class="num">Ziel Papier</th><th class="num">Ziel App</th><th>Satz</th><th>Stufe</th><th>PIN</th><th></th></tr></thead><tbody>${stu}</tbody></table></div>
   <p class="muted small">Schreib- und Tipptempo in Ziffern pro Minute. Das Tipptempo misst die App beim Tipptest selbst. Ziele leer lassen = automatisch.</p>
@@ -344,8 +363,9 @@ function drawChart() {
   let h = '';
   for (let v = 0; v <= top; v += step) h += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
   rows.forEach((r, i) => { if (i > 0 && r.set_id !== rows[i - 1].set_id) { const x = X(r.d); h += `<line x1="${x}" x2="${x}" y1="${m.t - 6}" y2="${H - m.b}" stroke="var(--muted)" stroke-dasharray="2 4"/><text x="${x + 4}" y="${m.t + 6}">${esc(r.set_id)}</text>`; } });
+  rows.filter(r => r.medium === 'app' && !r.in_class).forEach(r => { h += `<circle cx="${X(r.d)}" cy="${Y(r.correct)}" r="3" fill="none" stroke="var(--app)" stroke-opacity=".55"><title>${fmt(r.d)} geübt: ${r.correct} richtig</title></circle>`; });
   [['papier', 'var(--teal)', gP], ['app', 'var(--app)', gA]].forEach(([md, col, g]) => {
-    const rr = rows.filter(r => r.medium === md); if (!rr.length) return;
+    const rr = rows.filter(r => r.medium === md && (md === 'papier' || r.in_class)); if (!rr.length) return;
     h += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="${col}" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W - m.r}" y="${Y(g) - 6}" text-anchor="end" style="fill:${col}">Ziel ${md === 'app' ? 'App' : 'Papier'} ${g}</text>`;
     const byDay = {}; rr.forEach(r => { byDay[r.d] = Math.max(byDay[r.d] || 0, r.correct); });
     const pts = Object.keys(byDay).sort().map(d => X(d) + ',' + Y(byDay[d])).join(' ');
@@ -375,6 +395,9 @@ function bind() {
   window.addEventListener('hashchange', route);
   $('#f-cls').addEventListener('change', async e => { ui.cls = e.target.value; ui.stu = null; pins = {}; await loadClass(); render(); });
   $('#logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+  $('#win-open').addEventListener('click', () => openWindow(12).catch(() => {}));
+  $('#w-close').addEventListener('click', () => closeWindow(false));
+  $('#w-plus').addEventListener('click', () => { if (win) openWindowExtend(); });
   const main = $('#main');
   main.addEventListener('change', async e => {
     const t = e.target;
@@ -462,6 +485,16 @@ function bind() {
       else if (act === 'pin' && s) { if (s.has_pin && !await ask('Neue PIN für „' + s.code + '“? Die alte PIN gilt dann nicht mehr und das Kind wird auf allen Geräten abgemeldet.', 'Neue PIN')) return; await makePins([s]); render(); }
       else if (act === 'pins-missing') { const list = students.filter(x => !x.has_pin); if (!list.length) return toast('Alle Kinder haben eine PIN'); await makePins(list); render(); }
       else if (act === 'pins-all') { if (!await ask('Für alle ' + students.length + ' Kinder neue PINs erzeugen? Alle werden abgemeldet und brauchen neue Karten.', 'Alle neu')) return; await makePins(students); render(); }
+      else if (act === 'addsched') {
+        const c = cls(); const st = $('#s-start').value, mi = Math.round(+$('#s-min').value || 0), dw = +$('#s-dow').value;
+        if (!/^\d{2}:\d{2}$/.test(st) || mi < 1 || mi > 90) return toast('Bitte Beginn und Dauer (1–90 min) angeben');
+        const schedule = (c.schedule || []).concat([{ dow: dw, start: st, min: mi }]).sort((a, b) => a.dow - b.dow || a.start.localeCompare(b.start));
+        await q(sb.from('classes').update({ schedule }).eq('id', c.id), 'Stundenplan'); c.schedule = schedule; render();
+      }
+      else if (act === 'delsched') {
+        const c = cls(); const schedule = (c.schedule || []).filter((_, i) => i !== +b.dataset.i);
+        await q(sb.from('classes').update({ schedule }).eq('id', c.id), 'Stundenplan'); c.schedule = schedule; render();
+      }
       else if (act === 'cards') printCards();
       else if (act === 'csv') csvExport();
     } catch (err) { /* Status zeigt den Fehler */ }
@@ -478,9 +511,9 @@ function printCards() {
   const c = cls(); const list = students.filter(s => pins[s.id]); if (!list.length) return toast('Erst PINs erzeugen');
   const base = schuelerUrl();
   const card = s => {
-    const url = base + '#k=' + encodeURIComponent(c.join_code) + '&c=' + encodeURIComponent(s.code);
+    const url = base + '#k=' + encodeURIComponent(c.join_code) + '&c=' + encodeURIComponent(s.code) + '&p=' + encodeURIComponent(pins[s.id]);
     let svg = ''; try { const qr = window.qrcode(0, 'M'); qr.addData(url); qr.make(); svg = qr.createSvgTag({ cellSize: 3, margin: 0, scalable: true }); } catch (e) {}
-    return `<div class="card"><div><div style="font-size:9pt;color:#555">Sprint · Grundaufgaben</div><div style="font-size:14pt;font-weight:700;margin:2mm 0">Klasse ${esc(c.name)} · Kürzel ${esc(s.code)}</div><div>Klassencode: <b>${esc(c.join_code)}</b></div><div style="margin-top:2mm">PIN:</div><div class="pin">${esc(pins[s.id])}</div><div style="font-size:8pt;color:#555;margin-top:2mm;word-break:break-all">${esc(base)}</div></div><div>${svg}</div></div>`;
+    return `<div class="card"><div><div style="font-size:9pt;color:#555">Sprint · Grundaufgaben</div><div style="font-size:14pt;font-weight:700;margin:2mm 0">Klasse ${esc(c.name)} · Kürzel ${esc(s.code)}</div><div>Klassencode: <b>${esc(c.join_code)}</b></div><div style="margin-top:2mm">PIN:</div><div class="pin">${esc(pins[s.id])}</div><div style="font-size:8pt;color:#555;margin-top:2mm">QR-Code scannen = sofort angemeldet. Karte wie einen Schlüssel behandeln.</div><div style="font-size:8pt;color:#555;word-break:break-all">${esc(base)}</div></div><div>${svg}</div></div>`;
   };
   $('#print').innerHTML = `<div class="cards">${list.map(card).join('')}</div>`;
   window.print();
@@ -492,6 +525,34 @@ function csvExport() {
   const out = ['Datum;Klasse;Kürzel;Satz;Aufgaben richtig;Fehler;Art;Medium;Modus'];
   sprints.forEach(r => out.push([r.d, c.name, code[r.student_id] || '?', r.set_id, r.correct, r.errors, r.kind === 'K' ? 'Kontrolle' : 'Tag', r.medium, r.mode].map(qv).join(';')));
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + out.join('\n')], { type: 'text/csv' })); a.download = 'sprints-' + c.name.replace(/[^\w-]+/g, '_') + '-' + today() + '.csv'; document.body.append(a); a.click(); a.remove();
+}
+
+/* ---------- Unterrichtsfenster ---------- */
+let win = null, winTimer = 0, winPoll = 0;
+async function openWindow(minutes) {
+  const c = cls(); if (!c) return toast('Erst eine Klasse wählen');
+  const r = await q(sb.rpc('teacher_open_window', { p_class: c.id, p_minutes: minutes || 12 }), 'Fenster');
+  win = { until: Date.parse(r.until), cls: c.id };
+  $('#w-of').textContent = students.length; $('#win').hidden = false;
+  clearInterval(winTimer); clearInterval(winPoll);
+  const tickW = () => { const left = Math.max(0, win.until - Date.now()); $('#w-left').textContent = Math.floor(left / 60000) + ':' + String(Math.floor(left / 1000) % 60).padStart(2, '0'); if (!left) closeWindow(true); };
+  const poll = async () => {
+    const ids = students.map(s => s.id); if (!ids.length || !win) return;
+    const { data } = await sb.from('sprints').select('student_id').eq('medium', 'app').eq('in_class', true).eq('d', today()).in('student_id', ids);
+    if (data && win) $('#w-n').textContent = new Set(data.map(x => x.student_id)).size;
+  };
+  tickW(); poll(); winTimer = setInterval(tickW, 1000); winPoll = setInterval(poll, 5000);
+}
+async function openWindowExtend() {
+  // Verlängern: Restzeit + 5 Minuten
+  const left = Math.ceil(Math.max(0, win.until - Date.now()) / 60000) + 5;
+  await openWindow(left);
+}
+async function closeWindow(expired) {
+  clearInterval(winTimer); clearInterval(winPoll);
+  if (win && !expired) { try { await q(sb.rpc('teacher_close_window', { p_class: win.cls }), 'Fenster'); } catch (e) {} }
+  win = null; $('#win').hidden = true;
+  await loadClass(); render();
 }
 
 /* ---------- Start ---------- */

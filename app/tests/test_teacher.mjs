@@ -11,7 +11,7 @@ const T={classes:[{id:'c1',name:'6b',join_code:'K7M3QX',created_at:'1'}],
  students:[{id:'s1',class_id:'c1',code:'01',grp:'B',write_rate:90,tap_rate:120,goal_paper:0,goal_app:0,set_id:'M5',stage:2,since:add(today,-20),done:[{set:'M4',d:add(today,-21),checks:[]}],diag:[],has_pin:true},
            {id:'s2',class_id:'c1',code:'02',grp:'A',write_rate:0,tap_rate:0,goal_paper:0,goal_app:0,set_id:'A6',stage:1,since:add(today,-3),done:[],diag:[],has_pin:false}],
  sprints:[]};
-let id=1;for(let i=10;i>=0;i--){T.sprints.push({id:id++,student_id:'s1',d:add(today,-i),set_id:'M5',correct:28+i%3,errors:1,kind:'T',medium:'papier',mode:'sprint',created_at:add(today,-i)});T.sprints.push({id:id++,student_id:'s1',d:add(today,-i),set_id:'M5',correct:24+(10-i),errors:0,kind:'T',medium:'app',mode:'sprint',created_at:add(today,-i)+'z'});}
+let id=1;for(let i=10;i>=0;i--){T.sprints.push({id:id++,student_id:'s1',d:add(today,-i),set_id:'M5',correct:28+i%3,errors:1,kind:'T',medium:'papier',mode:'sprint',created_at:add(today,-i)});T.sprints.push({id:id++,student_id:'s1',d:add(today,-i),set_id:'M5',correct:24+(10-i),errors:0,kind:'T',medium:'app',mode:'sprint',in_class:true,created_at:add(today,-i)+'z'});}
 const calls=[];
 class B{constructor(t){this.t=t;this.f=[];this.op='select';this.p=null;this.one=false;this.rng=null}
  select(){return this} insert(p){this.op='insert';this.p=Array.isArray(p)?p:[p];return this} update(p){this.op='update';this.p=p;return this} delete(){this.op='delete';return this}
@@ -24,7 +24,7 @@ class B{constructor(t){this.t=t;this.f=[];this.op='select';this.p=null;this.one=
   if(this.op==='delete'){T[this.t]=tb.filter(r=>!m.includes(r));return m}
   return this.rng?m.slice(this.rng[0],this.rng[1]+1):m}
  then(res,rej){return Promise.resolve({data:this.exec(),error:null}).then(res,rej)}}
-const rpcs={teacher_paper:a=>{calls.push('paper:'+JSON.stringify(a));return{ok:true}},teacher_set_pin:a=>{calls.push('pin:'+a.p_student);return{ok:true}},
+const rpcs={teacher_open_window:a=>{calls.push('open:'+a.p_minutes);return{until:new Date(Date.now()+a.p_minutes*60000).toISOString()}},teacher_close_window:a=>{calls.push('close');return{ok:true}},teacher_paper:a=>{calls.push('paper:'+JSON.stringify(a));return{ok:true}},teacher_set_pin:a=>{calls.push('pin:'+a.p_student);return{ok:true}},
  teacher_fact_stats:a=>[{fact:'7 · 8',set_id:'M7',n:12,errors:4,median_ms:3800},{fact:'56 : 8',set_id:'M7',n:6,errors:1,median_ms:3100},{fact:'4 · 6',set_id:'M5',n:9,errors:0,median_ms:1200},{fact:'8 + 5',set_id:'A6',n:5,errors:1,median_ms:2400}]};
 const dom=new JSDOM(html,{runScripts:'dangerously',url:'https://app.test/lehrer.html#erfassen',pretendToBeVisual:true,beforeParse(w){
  w.__fake={auth:{getSession:async()=>({data:{session:{user:{id:'t'}}}}),signOut:async()=>{}},from:t=>new B(t),rpc:(fn,a)=>Promise.resolve({data:rpcs[fn](a),error:null})};
@@ -65,5 +65,21 @@ const sel=d.querySelector('#stutab tr[data-sid=s2] select[data-f=set_id]');sel.v
 ok(T.students.find(s=>s.id==='s2').set_id==='A7','student set updated');
 await go('erfassen');click('[data-act=set][data-sid=s1]');await sleep(100);
 ok(T.students[0].set_id==='M6'&&T.students[0].done.length===2,'advance set');
+// Freigabe
+d.querySelector('#win-open').click(); await sleep(150);
+ok(!d.querySelector('#win').hidden&&d.querySelector('#win').textContent.includes('freigegeben'),'Freigabe-Overlay ohne Code');
+ok(/^\d+:\d\d$/.test(d.querySelector('#w-left').textContent),'Countdown '+d.querySelector('#w-left').textContent);
+d.querySelector('#w-plus').click(); await sleep(100);
+ok(calls.filter(c=>c.startsWith('open:')).length===2,'verlängert');
+d.querySelector('#w-close').click(); await sleep(150);
+ok(d.querySelector('#win').hidden&&calls.includes('close'),'Freigabe beendet');
+// Stundenplan
+await go('verwalten');
+d.querySelector('#s-dow').value='2'; d.querySelector('#s-start').value='08:40'; d.querySelector('#s-min').value='12';
+click('[data-act=addsched]'); await sleep(100);
+ok(JSON.stringify(T.classes[0].schedule)==='[{"dow":2,"start":"08:40","min":12}]','Stundenplan gespeichert');
+ok(d.body.textContent.includes('Dienstag'),'Stundenplan angezeigt');
+click('[data-act=delsched]'); await sleep(100);
+ok(T.classes[0].schedule.length===0,'Zeit entfernt');
 ok(errs.length===0,'no errors '+errs.join(' | '));
 process.exit();
