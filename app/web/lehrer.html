@@ -166,9 +166,31 @@ function viewLogin(msg) {
   <p class="muted small">Konten für Lehrkräfte legt der Administrator in Supabase an (Authentication → Users).</p></div>`;
   $('#lf').addEventListener('submit', async e => {
     e.preventDefault();
-    const { error } = await sb.auth.signInWithPassword({ email: $('#le').value.trim(), password: $('#lp').value });
-    if (error) viewLogin('Anmeldung fehlgeschlagen.'); else location.reload();
+    const btn = $('#lf button'); btn.disabled = true; btn.textContent = 'Anmelden …';
+    let error;
+    try { ({ error } = await sb.auth.signInWithPassword({ email: $('#le').value.trim(), password: $('#lp').value })); }
+    catch (err) { error = err; }
+    if (error) { console.error('Login', error); viewLogin(loginHint(error)); } else location.reload();
   });
+}
+// Übersetzt Fehler von Supabase in einen Hinweis, was zu tun ist (mit Originalmeldung zur Diagnose).
+function loginHint(e) {
+  const code = e.code || '', msg = e.message || String(e), st = e.status;
+  let hint;
+  if (code === 'invalid_credentials' || /invalid login credentials/i.test(msg))
+    hint = 'E-Mail oder Passwort falsch – oder es gibt diese Lehrkraft in diesem Supabase-Projekt nicht (Authentication → Users).';
+  else if (code === 'email_not_confirmed' || /not confirmed/i.test(msg))
+    hint = 'E-Mail-Adresse ist noch nicht bestätigt. In Supabase unter Authentication → Users beim Nutzer „Confirm email“ wählen oder ihn mit „Auto Confirm User“ neu anlegen.';
+  else if (code === 'email_provider_disabled' || /email logins are disabled/i.test(msg))
+    hint = 'E-Mail-Anmeldung ist in Supabase ausgeschaltet (Authentication → Sign In / Providers → Email aktivieren).';
+  else if (/invalid api key|no api key/i.test(msg) || st === 401)
+    hint = 'Der Schlüssel in config.js passt nicht zu diesem Projekt. Secret SUPABASE_ANON_KEY prüfen (Publishable key aus Project Settings → API Keys) und neu veröffentlichen.';
+  else if (code === 'over_request_rate_limit' || st === 429)
+    hint = 'Zu viele Versuche. Ein paar Minuten warten.';
+  else if (!st || /fetch|network|load failed/i.test(msg))
+    hint = 'Supabase ist nicht erreichbar. SUPABASE_URL prüfen (' + (C.supabaseUrl || 'leer') + ') und ob das Projekt pausiert ist.';
+  else hint = 'Anmeldung fehlgeschlagen.';
+  return hint + ' [' + [st, code, msg].filter(Boolean).join(' · ') + ']';
 }
 
 /* ---------- Laden ---------- */
@@ -561,7 +583,7 @@ async function boot() {
   const { data } = await sb.auth.getSession();
   if (!data || !data.session) return viewLogin();
   bind();
-  try { await loadClasses(); await loadClass(); setStatus('Verbunden'); } catch (e) { $('#main').innerHTML = '<div class="empty">Daten konnten nicht geladen werden. Ist das Schema eingespielt?</div>'; return; }
+  try { await loadClasses(); await loadClass(); setStatus('Verbunden'); } catch (e) { console.error('Laden', e); $('#main').innerHTML = '<div class="empty">Daten konnten nicht geladen werden. Ist das Schema eingespielt (supabase/schema.sql im SQL Editor)?<br><small>' + esc([e.code, e.message].filter(Boolean).join(' · ')) + '</small></div>'; return; }
   route();
 }
 boot();
