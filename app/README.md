@@ -26,7 +26,7 @@ Die App ist eine rein statische Seite und läuft direkt auf GitHub Pages. Die Zu
 
 1. **Supabase vorbereiten** wie unten in Schritt 1–3 (Projekt, Schema, Lehrkräfte anlegen).
 2. **Secrets anlegen:** Im Repo *Settings → Secrets and variables → Actions → New repository secret*:
-   - `SUPABASE_URL`: *Project URL*, z. B. `https://xyz.supabase.co`
+   - `SUPABASE_URL`: *Project URL*, nur `https://xyz.supabase.co` ohne `/rest/v1` (ein Pfad wird beim Build entfernt, mit Warnung im Log)
    - `SUPABASE_ANON_KEY`: der **Publishable key** (*Project Settings → API Keys*, beginnt mit `sb_publishable_…`). Der alte *anon*-Key (`eyJ…`) funktioniert auch noch, wird von Supabase aber abgeschafft. **Nie** den Secret key (`sb_secret_…`) oder `service_role`-Key; der Build bricht dann ab.
    - optional unter *Variables*: `SCHUELER_URL`, falls die QR-Codes auf eine andere Adresse zeigen sollen (z. B. eigene Domain)
 3. **Pages einschalten:** *Settings → Pages → Build and deployment → Source: **GitHub Actions***.

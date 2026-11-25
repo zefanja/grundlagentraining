@@ -106,3 +106,11 @@ for (const [name, resp, re] of cases) {
   const t = await loginWith(() => resp);
   ok(re.test(t), `Lehrer-Login (${name}): ${(t.match(re) || [t.slice(0, 120).replace(/\s+/g, ' ')])[0]}`);
 }
+
+// --- Pages-Build: Pfad in SUPABASE_URL wird entfernt ---
+for (const u of ['https://x.supabase.co/rest/v1', 'https://x.supabase.co/rest/v1/', 'https://x.supabase.co/']) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-'));
+  const r = spawnSync(process.execPath, [P + 'scripts/build-pages.mjs', dir], { env: { ...process.env, SUPABASE_URL: u, SUPABASE_ANON_KEY: PUB }, encoding: 'utf8' });
+  const cfg = fs.readFileSync(path.join(dir, 'config.js'), 'utf8');
+  ok(r.status === 0 && cfg.includes('"supabaseUrl": "https://x.supabase.co"'), `Build: ${u} → https://x.supabase.co${/rest/.test(u) ? ' (mit Warnung: ' + /::warning::/.test(r.stdout) + ')' : ''}`);
+}

@@ -24,8 +24,12 @@ const schuelerUrl = (process.env.SCHUELER_URL || '').trim();
 if (!url) fail('Secret SUPABASE_URL fehlt (Settings → Secrets and variables → Actions).');
 if (!key) fail('Secret SUPABASE_ANON_KEY fehlt (Settings → Secrets and variables → Actions).');
 let origin;
-try { const u = new URL(url); if (u.protocol !== 'https:') throw 0; origin = u.origin; }
+let extra = '';
+try { const u = new URL(url); if (u.protocol !== 'https:') throw 0; origin = u.origin; extra = u.pathname.replace(/\/+$/, '') + u.search; }
 catch { fail('SUPABASE_URL muss eine https-Adresse sein, z. B. https://xyz.supabase.co'); }
+// Nur die Projektadresse verwenden: Ein Pfad wie /rest/v1 (die "API URL" aus dem Dashboard)
+// würde den Login auf …/rest/v1/auth/v1/token schicken → 404 "Invalid path specified in request URL".
+if (extra) console.log(`::warning::SUPABASE_URL enthält zusätzlich "${extra}". Verwendet wird nur ${origin}. Am besten das Secret auf die reine Project URL ändern.`);
 if (key.startsWith('sb_secret_') || /service_role/.test(Buffer.from(key.split('.')[1] || '', 'base64').toString()))
   fail('SUPABASE_ANON_KEY ist ein geheimer Schlüssel (secret/service_role). Nur den publishable- oder anon-Key verwenden!');
 if (!key.startsWith('sb_publishable_') && !key.startsWith('eyJ'))
@@ -36,7 +40,7 @@ cpSync(src, out, { recursive: true });
 // config.example.js und eine evtl. lokale config.js nicht mitveröffentlichen
 for (const f of ['config.js', 'config.example.js']) rmSync(join(out, f), { force: true });
 
-const cfg = { supabaseUrl: url, supabaseAnonKey: key, schuelerUrl };
+const cfg = { supabaseUrl: origin, supabaseAnonKey: key, schuelerUrl };
 writeFileSync(join(out, 'config.js'),
   `/* Automatisch erzeugt beim Deployment auf GitHub Pages. */\nwindow.SPRINT_CONFIG = ${JSON.stringify(cfg, null, 2)};\n`);
 
