@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprint-Tracker Grundaufgaben</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE work: a teacher's daily logbook, calm, dense, exact
+   IDEA the coach's lane sheet: one row per runner, today's time, the target line
+   PICTURE the live entry sheet itself; per child a curve against a dashed target line
+   COLOUR white ground, deep teal band (as in the Übungsheft), coral for what needs action
+   TYPE Outfit 600 for headings and figures + Inter for text
+   LAYOUT teal band with title, class, date and four figures; tabs; the sheet full width. Phone: stacked, inputs stay large */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0e1716);--ink:light-dark(#12201f,#e6efed);--muted:light-dark(#5b6b69,#9fb2af);--line:light-dark(#dfe7e5,#24322f);--soft:light-dark(#eef6f5,#15211f);--teal:light-dark(#0f6e6e,#1b8a86);--teal-ink:#ffffff;--coral:light-dark(#d9452f,#ff7a63);--coral-soft:light-dark(#fde9e5,#3a1f1a);--ok:light-dark(#0f6e6e,#5fd0c6);--ok-soft:light-dark(#e3f3f1,#163330);--panel:light-dark(#f7faf9,#121d1c)}
+:root[data-theme=light]{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.fig-n{font-family:Outfit,Inter,sans-serif;font-weight:600;letter-spacing:-.01em}
+h1{font-size:clamp(26px,3.4vw,36px);line-height:1.05;margin:0}
+h2{font-size:22px;margin:0 0 12px}
+h3{font-size:17px;margin:0 0 8px}
+.band{background:var(--teal);color:var(--teal-ink);padding:22px max(4vw,16px) 18px}
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between;max-width:1240px;margin:0 auto}
+.top .sub{opacity:.85;font-size:14px;margin-top:4px}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.band select,.band input{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.45)}
+.band select option{color:#12201f}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(8.5em,1fr));gap:8px 20px;max-width:1240px;margin:16px auto 0}
+.fig-c{border-top:1px solid rgba(255,255,255,.35);padding-top:6px}
+.fig-n{font-size:28px;line-height:1.1}
+.fig-l{font-size:13px;opacity:.85}
+nav{border-bottom:1px solid var(--line);padding:0 max(4vw,16px);position:sticky;top:0;background:var(--bg);z-index:5}
+nav .in{max-width:1240px;margin:0 auto;display:flex;gap:4px;align-items:center;overflow-x:auto}
+nav a{flex:none;padding:12px 14px;color:var(--muted);text-decoration:none;font-weight:500;border-bottom:3px solid transparent}
+nav a.on{color:var(--ink);border-bottom-color:var(--teal)}
+#save{margin-left:auto;flex:none;font-size:13px;color:var(--muted);padding-left:12px;white-space:nowrap}
+#save.bad{color:var(--coral);font-weight:600}
+main{max-width:1240px;margin:0 auto;padding:20px max(4vw,16px) 48px}
+select,input,textarea,button{font:inherit;font-size:16px}
+select,input,textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);min-height:44px}
+input[type=number]{width:5.5em;text-align:right;font-variant-numeric:tabular-nums}
+textarea{width:100%;min-height:120px}
+button{min-height:44px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;font-weight:500}
+button.pri{background:var(--teal);color:#fff;border-color:var(--teal)}
+button.sm{min-height:34px;padding:4px 10px;font-size:14px}
+button.warn{color:var(--coral)}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid color-mix(in srgb,var(--teal) 60%,transparent);outline-offset:1px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent}
+.seg button.on{background:var(--teal);color:#fff}
+.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:16px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th{font-size:13px;font-weight:600;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.code{font-weight:600}
+.code a{color:inherit}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font-size:13px;font-weight:500;margin:2px 4px 2px 0;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.bad{background:var(--coral-soft);color:var(--coral)}
+.chip.info{background:var(--soft);color:var(--muted)}
+.set{font-weight:600;font-variant-numeric:tabular-nums}
+.meter{height:8px;background:var(--soft);border-radius:4px;overflow:hidden;min-width:80px}
+.meter i{display:block;height:100%;background:var(--teal)}
+.meter i.hi{background:var(--ok)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.fig{position:relative;min-height:300px}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+svg text{font:13px Inter,sans-serif;fill:var(--muted);paint-order:stroke;stroke:var(--bg);stroke-width:4px}
+.rowbar{display:grid;grid-template-columns:3.2em minmax(0,1fr) 2.5em;gap:10px;align-items:center;margin:6px 0}
+.rowbar .b{height:18px;background:var(--teal);border-radius:4px}
+.empty{padding:32px;text-align:center;border:1px dashed var(--line);border-radius:12px}
+.note{border-left:3px solid var(--teal);padding:8px 12px;background:var(--soft);border-radius:0 8px 8px 0;font-size:14px}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+#modal[hidden]{display:none}
+#modal .box{background:var(--bg);border-radius:12px;padding:20px;max-width:420px;width:100%}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s}
+#toast.show{opacity:1}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+@media(max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}.hide-s{display:none}}
+@media(max-width:600px){td,th{padding:6px 4px}input[type=number]{width:4.2em}.fig-n{font-size:24px}}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="top">
+    <div>
+      <h1>Sprint-Tracker</h1>
+      <div class="sub">Grundaufgaben 1+1 und 1·1 · Klasse 5–7</div>
+    </div>
+    <div class="ctl">
+      <label class="small" for="f-cls">Klasse</label>
+      <select id="f-cls"></select>
+    </div>
+  </div>
+  <div class="figs" id="figs"></div>
+</header>
+<nav><div class="in">
+  <a href="#erfassen" data-v="erfassen">Erfassen</a>
+  <a href="#klasse" data-v="klasse">Klasse</a>
+  <a href="#schueler" data-v="schueler">Schüler</a>
+  <a href="#verwalten" data-v="verwalten">Verwalten</a>
+  <span id="save">Lade…</span>
+</div></nav>
+<main id="main"><div class="empty">Daten werden geladen…</div></main>
+<div id="modal" hidden><div class="box"><p></p><div class="bar" style="justify-content:flex-end;margin:0"><button class="no">Abbrechen</button><button class="ok pri">OK</button></div></div></div>
+<div id="toast" role="status"></div>
+<input type="file" id="f-import" accept="application/json,.json" hidden>
+<script>
+{
+const SETS=[['A1','+0, +1, +2'],['A2','Zehnerfreunde, +10'],['A3','Verdoppeln bis 10+10'],['A4','Fast-Verdoppeln'],['A5','+9'],['A6','Zehnerübergang mit 8 und 7'],['A7','Restfakten Addition'],['M1','·0, ·1, ·10'],['M2','·2, ·5'],['M3','·9'],['M4','Quadratzahlen'],['M5','·4'],['M6','·3'],['M7','6·7, 6·8, 7·8'],['E1','Großes Einmaleins'],['E2','Stellenwert-Analogien'],['E3','Teilbarkeit, Zerlegung'],['E4','Brüche und Prozente'],['E5','Rechenvorteile'],['E6','Ganze Zahlen']];
+const SET_IDS=SETS.map(s=>s[0]);
+const setName=id=>(SETS.find(s=>s[0]===id)||[id,''])[1];
+const nextSet=id=>{const i=SET_IDS.indexOf(id);return i>=0&&i<SET_IDS.length-1?SET_IDS[i+1]:id};
+const STAGE={1:'Akquisition',2:'Flüssigkeit'};
+const CHECKS=[7,14,28];
+const LS='sprint-tracker-v1';
+const $=q=>document.querySelector(q);
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>iso(new Date());
+const dnum=s=>Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5;
+const addDays=(s,n)=>new Date((dnum(s)+n)*864e5).toISOString().slice(0,10);
+const wday=s=>new Date(dnum(s)*864e5).getUTCDay();
+const fmt=s=>['So','Mo','Di','Mi','Do','Fr','Sa'][wday(s)]+' '+(+s.slice(8,10))+'.'+(+s.slice(5,7))+'.';
+const newId=()=>Math.random().toString(36).slice(2,9);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{if(v===''||v==null)return null;const n=Math.round(Number(String(v).replace(',','.')));return Number.isFinite(n)&&n>=0?n:null};
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+
+let meta={v:1,classes:[]};
+let entries={};
+let ui={view:'erfassen',cls:null,date:today(),kind:'T',stu:null};
+let mode='local',col=null,loaded=false;
+const dirty=new Set();let busy=false,saveTimer=null,chartRO=null;
+
+function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2600)}
+function setStatus(t,bad){const el=$('#save');el.textContent=t;el.classList.toggle('bad',!!bad)}
+function ask(msg,ok){return new Promise(res=>{const m=$('#modal');m.querySelector('p').textContent=msg;const b=m.querySelector('.ok');b.textContent=ok||'OK';m.hidden=false;b.focus();const done=v=>{m.hidden=true;res(v)};b.onclick=()=>done(true);m.querySelector('.no').onclick=()=>done(false)})}
+
+/* ---------- storage ---------- */
+function markDirty(k){dirty.add(k);clearTimeout(saveTimer);setStatus('Nicht gespeichert…');saveTimer=setTimeout(flush,700)}
+async function writeDoc(k){
+  if(k.startsWith('del:'))return col.doc(k.slice(4)).delete();
+  const body=k==='meta'?meta:entries[k];
+  if(!body)return col.doc(k).delete();
+  return col.doc(k).set({j:JSON.stringify(body)});
+}
+async function flush(){
+  if(mode==='local'){
+    try{localStorage.setItem(LS,JSON.stringify({meta,entries}));dirty.clear();setStatus('Lokal gespeichert')}
+    catch(e){setStatus('Speichern nicht möglich: Sicherung herunterladen',true)}
+    return;
+  }
+  if(busy)return;busy=true;setStatus('Speichert…');
+  while(dirty.size){
+    const k=dirty.values().next().value;dirty.delete(k);
+    try{await writeDoc(k)}
+    catch(e){
+      let ok=false;
+      if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,700+Math.random()*800));try{await writeDoc(k);ok=true}catch(e2){e=e2}}
+      if(!ok){dirty.add(k);busy=false;setStatus(e&&e.code==='quota_exceeded'?'Speicher voll: Sicherung herunterladen':'Fehler beim Speichern: Sicherung herunterladen',true);return}
+    }
+  }
+  busy=false;setStatus('Gespeichert');
+}
+function loadLocal(){try{const raw=localStorage.getItem(LS);if(raw){const v=JSON.parse(raw);if(v&&v.meta)meta=v.meta;if(v&&v.entries)entries=v.entries}}catch(e){}}
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:'timeout'}),ms))]);
+async function boot(){
+  let db=null,user=null,id=null;
+  if(window.claude&&typeof claude.use==='function'){
+    const t=()=>new Promise(r=>setTimeout(()=>r(null),10000));
+    try{[db,user]=await Promise.all([Promise.race([claude.use('db'),t()]),Promise.race([claude.use('user'),t()])])}catch(e){}
+    if(db&&user){try{id=await user.id()}catch(e){}}
+  }
+  if(db&&id){
+    try{
+      col=db.collection('data/users/'+id);
+      const q=await withTimeout(col.get(),10000);
+      mode='db';
+      q.docs.forEach(d=>{const b=d.data();if(!b||typeof b.j!=='string')return;try{const v=JSON.parse(b.j);if(d.id==='meta')meta=v;else if(d.id.startsWith('e_'))entries[d.id]=v}catch(e){}});
+      setStatus('Gespeichert (privat in deinem Konto)');
+    }catch(e){mode='local';loadLocal();setStatus('Konto nicht erreichbar: lokaler Modus',true)}
+  }else{mode='local';loadLocal();setStatus('Lokaler Modus (dieser Browser)')}
+  if(!meta||!Array.isArray(meta.classes))meta={v:1,classes:[]};
+  loaded=true;
+  ui.cls=meta.classes[0]?meta.classes[0].id:null;
+  route();
+}
+
+/* ---------- data helpers ---------- */
+const cls=()=>meta.classes.find(c=>c.id===ui.cls)||null;
+function allRows(cid){const out=[];for(const k in entries){if(k.startsWith('e_'+cid+'_'))out.push(...entries[k].rows)}return out}
+const byDate=(a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:(a[5]<b[5]?-1:1);
+function stuRows(cid,sid){return allRows(cid).filter(r=>r[1]===sid).sort(byDate)}
+function findRow(cid,d,sid,k){const doc=entries['e_'+cid+'_'+d.slice(0,7)];return doc?doc.rows.find(r=>r[0]===d&&r[1]===sid&&r[5]===k):null}
+function upsert(cid,d,s,k,dc,err){
+  const key='e_'+cid+'_'+d.slice(0,7);
+  const doc=entries[key]||(entries[key]={rows:[]});
+  const i=doc.rows.findIndex(r=>r[0]===d&&r[1]===s.id&&r[5]===k);
+  if(dc==null&&err==null){if(i>=0)doc.rows.splice(i,1)}
+  else{const row=[d,s.id,i>=0?doc.rows[i][2]:s.set,dc,err??0,k];if(i>=0)doc.rows[i]=row;else doc.rows.push(row)}
+  if(!doc.rows.length)delete entries[key];
+  markDirty(key);
+}
+const goal=s=>s.goal||(s.rate?Math.round(s.rate/2.5):30);
+function dueChecks(s,ref){const out=[];(s.done||[]).forEach(x=>{const n=(x.checks||[]).length;if(n<CHECKS.length){const dd=addDays(x.d,CHECKS[n]);if(dd<=(ref||today()))out.push({set:x.set,d:dd,i:n})}});return out}
+function status(cid,s){
+  const rows=stuRows(cid,s.id).filter(r=>r[3]!=null);
+  const cur=rows.filter(r=>r[2]===s.set&&r[0]>=s.since);
+  const last2=cur.slice(-2),g=goal(s);
+  const met=s.stage===2&&last2.length===2&&last2.every(r=>r[3]>=g&&r[4]<=2);
+  const acc=s.stage===1&&last2.length===2&&last2.every(r=>r[4]===0);
+  const days=dnum(today())-dnum(s.since);
+  const stall=!met&&!acc&&days>=14;
+  return {rows,cur,met,acc,stall,days,due:dueChecks(s),last:rows[rows.length-1]||null,g};
+}
+function advanceStage(s,d){s.stage=2;s.since=d||today();(s.hist=s.hist||[]).push({d:s.since,set:s.set,stage:2})}
+function advanceSet(s,d){d=d||today();(s.done=s.done||[]).push({set:s.set,d,checks:[]});s.set=nextSet(s.set);s.stage=1;s.since=d;(s.hist=s.hist||[]).push({d,set:s.set,stage:1})}
+function newStudent(code){return {id:newId(),code,group:'B',rate:0,goal:0,set:'A1',stage:1,since:today(),hist:[],done:[],diag:[]}}
+
+/* ---------- header ---------- */
+function renderHeader(){
+  const sel=$('#f-cls');
+  sel.innerHTML=meta.classes.length?meta.classes.map(c=>`<option value="${esc(c.id)}"${c.id===ui.cls?' selected':''}>${esc(c.name)}</option>`).join(''):'<option>keine Klasse</option>';
+  const c=cls();let f=[];
+  if(c){
+    const st=c.students.map(s=>status(c.id,s));
+    const done=c.students.filter(s=>findRow(c.id,ui.date,s.id,ui.kind)).length;
+    const shares=st.filter(x=>x.last).map(x=>x.last[3]/x.g);
+    f=[[done+' / '+c.students.length,'heute eingetragen ('+fmt(ui.date)+')'],[shares.length?Math.round(avg(shares)*100)+' %':'–','Ø letzter Sprint vom Ziel'],[st.filter(x=>x.met||x.acc).length,'Kriterium erreicht'],[st.filter(x=>x.stall).length,'Stillstand ≥ 14 Tage'],[st.reduce((a,x)=>a+x.due.length,0),'Kontrollen fällig']];
+  }
+  $('#figs').innerHTML=f.map(([n,l])=>`<div class="fig-c"><div class="fig-n">${esc(n)}</div><div class="fig-l">${esc(l)}</div></div>`).join('');
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===ui.view));
+}
+
+/* ---------- spark + hints ---------- */
+function spark(c,s){
+  const rows=stuRows(c.id,s.id).filter(r=>r[3]!=null).slice(-10);if(!rows.length)return '<span class="muted small">–</span>';
+  const g=goal(s),W=96,H=26,mx=Math.max(g,...rows.map(r=>r[3]))*1.1;
+  const X=i=>rows.length<2?W/2:2+i*(W-4)/(rows.length-1),Y=v=>H-2-v/mx*(H-4);
+  return `<svg width="${W}" height="${H}" aria-hidden="true"><line x1="0" x2="${W}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--coral)" stroke-dasharray="3 3"/><polyline fill="none" stroke="var(--teal)" stroke-width="2" points="${rows.map((r,i)=>X(i)+','+Y(r[3])).join(' ')}"/><circle cx="${X(rows.length-1)}" cy="${Y(rows[rows.length-1][3])}" r="3" fill="var(--teal)"/></svg>`;
+}
+function hints(c,s,st,withBtn){
+  let h='';
+  if(st.met)h+=`<span class="chip ok">Kriterium erreicht</span>${withBtn?`<button class="sm" data-act="set" data-sid="${esc(s.id)}">Weiter zu ${esc(nextSet(s.set))}</button>`:''}`;
+  if(st.acc)h+=`<span class="chip ok">2× fehlerfrei</span>${withBtn?`<button class="sm" data-act="stage" data-sid="${esc(s.id)}">Weiter zu Flüssigkeit</button>`:''}`;
+  if(st.stall)h+=`<span class="chip bad">Stillstand seit ${st.days} Tagen</span>`;
+  st.due.forEach(d=>{h+=`<span class="chip info">Kontrolle ${esc(d.set)} fällig</span>`});
+  return h||'<span class="muted small">–</span>';
+}
+
+/* ---------- views ---------- */
+function emptyState(){return `<div class="empty"><h2>Noch keine Klasse angelegt</h2><p class="muted">Lege unter „Verwalten“ eine Klasse mit Kürzeln an, oder sieh dir zuerst die Beispielklasse an.</p><div class="bar" style="justify-content:center"><a href="#verwalten"><button class="pri">Klasse anlegen</button></a><button data-act="demo">Beispielklasse laden</button></div></div>`}
+
+function viewErfassen(c){
+  const isDemo=c.id==='demo';
+  const rows=c.students.map(s=>{
+    const r=findRow(c.id,ui.date,s.id,ui.kind),st=status(c.id,s);
+    return `<tr data-sid="${esc(s.id)}"><td class="code"><a href="#schueler" data-act="stu" data-sid="${esc(s.id)}">${esc(s.code)}</a></td><td><span class="set" title="${esc(setName(s.set))}">${esc(s.set)}</span> <span class="muted small">${s.stage===1?'Akq.':'Fl.'}</span></td><td class="num">${goal(s)}</td><td class="hide-s sp">${spark(c,s)}</td><td class="num"><input type="number" inputmode="numeric" min="0" aria-label="Aufgaben richtig ${esc(s.code)}" data-f="dc" value="${r&&r[3]!=null?r[3]:''}"></td><td class="num"><input type="number" inputmode="numeric" min="0" aria-label="Fehler ${esc(s.code)}" data-f="err" value="${r?r[4]:''}"></td><td class="hn">${hints(c,s,st,true)}</td></tr>`}).join('');
+  return `${isDemo?'<p class="note">Beispielklasse mit erfundenen Werten. Unter „Verwalten“ wieder entfernen.</p>':''}
+  <div class="bar">
+    <button class="sm" data-act="day" data-n="-1" aria-label="Vorheriger Tag">◀</button>
+    <input type="date" id="f-date" value="${esc(ui.date)}" aria-label="Datum">
+    <button class="sm" data-act="day" data-n="1" aria-label="Nächster Tag">▶</button>
+    <div class="seg" role="group" aria-label="Art"><button data-act="kind" data-k="T" class="${ui.kind==='T'?'on':''}">Tagessprint</button><button data-act="kind" data-k="K" class="${ui.kind==='K'?'on':''}">Kontrollsprint (Woche)</button></div>
+    <span class="muted small">Enter springt weiter. Leere Felder = nicht dabei.</span>
+  </div>
+  ${c.students.length?`<div class="scroll"><table id="sheet"><thead><tr><th>Kürzel</th><th>Satz</th><th class="num">Ziel</th><th class="hide-s">Letzte 10</th><th class="num">Aufgaben richtig</th><th class="num">Fehler</th><th>Hinweis</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Diese Klasse hat noch keine Kinder. Kürzel unter „Verwalten“ eintragen.</div>'}
+  <p class="muted small">Ziel = Schreibtempo (Ziffern pro Minute) geteilt durch 2,5, sonst 30. Gezählt werden richtige Aufgaben pro Minute. Kriterium Flüssigkeit: 2 Sprints in Folge ≥ Ziel mit höchstens 2 Fehlern. Kriterium Akquisition: 2 Sprints in Folge ohne Fehler.</p>`;
+}
+
+function viewKlasse(c){
+  if(!c.students.length)return '<div class="empty">Noch keine Kinder in dieser Klasse.</div>';
+  const t=today(),list=c.students.map(s=>({s,st:status(c.id,s)})).sort((a,b)=>SET_IDS.indexOf(a.s.set)-SET_IDS.indexOf(b.s.set)||a.s.code.localeCompare(b.s.code));
+  const counts={};c.students.forEach(s=>counts[s.set]=(counts[s.set]||0)+1);
+  const mx=Math.max(...Object.values(counts));
+  const bars=SET_IDS.filter(id=>counts[id]).map(id=>`<div class="rowbar"><span class="set">${id}</span><div><div class="b" style="width:${counts[id]/mx*100}%" title="${esc(setName(id))}"></div></div><span class="num">${counts[id]}</span></div>`).join('');
+  const trend=st=>{const a=st.rows.filter(r=>dnum(t)-dnum(r[0])<7).map(r=>r[3]),b=st.rows.filter(r=>{const x=dnum(t)-dnum(r[0]);return x>=7&&x<14}).map(r=>r[3]);if(!a.length||!b.length)return '–';const d=Math.round(avg(a)-avg(b));return (d>0?'+':'')+d};
+  const rows=list.map(({s,st})=>{const p=st.last?Math.min(st.last[3]/st.g,1.2):0;return `<tr><td class="code"><a href="#schueler" data-act="stu" data-sid="${esc(s.id)}">${esc(s.code)}</a></td><td>${esc(s.group)}</td><td><span class="set">${esc(s.set)}</span> <span class="muted small">${esc(STAGE[s.stage])}</span></td><td class="num">${st.days}</td><td class="num">${st.last?st.last[3]+' / '+st.g:'– / '+st.g}</td><td class="hide-s"><div class="meter"><i class="${p>=1?'hi':''}" style="width:${Math.min(p,1)*100}%"></i></div></td><td class="num">${trend(st)}</td><td>${hints(c,s,st,true)}</td></tr>`}).join('');
+  const done=c.students.reduce((a,s)=>a+(s.done||[]).length,0);
+  return `<div class="grid2" style="margin-bottom:24px"><div class="panel"><h3>Kinder pro Satz</h3>${bars}<p class="muted small">Insgesamt ${done} Sätze abgeschlossen.</p></div><div class="panel"><h3>So liest du die Tabelle</h3><p class="small">„Tage“ zählt seit Beginn des aktuellen Satzes bzw. der Stufe. „Trend“ ist die Veränderung des Durchschnitts (richtige Aufgaben pro Minute) der letzten 7 Tage gegenüber den 7 Tagen davor. Kontrollsprints für abgeschlossene Sätze werden nach 7, 14 und 28 Tagen fällig; abhaken in der Schüleransicht.</p><button data-act="csv">Klasse als CSV exportieren</button></div></div>
+  <div class="scroll"><table><thead><tr><th>Kürzel</th><th>Gr.</th><th>Satz · Stufe</th><th class="num">Tage</th><th class="num">Letzter / Ziel</th><th class="hide-s">Anteil</th><th class="num">Trend</th><th>Hinweise</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function viewSchueler(c){
+  if(!c.students.length)return '<div class="empty">Noch keine Kinder in dieser Klasse.</div>';
+  let s=c.students.find(x=>x.id===ui.stu);if(!s){s=c.students[0];ui.stu=s.id}
+  const st=status(c.id,s);
+  const opts=c.students.map(x=>`<option value="${esc(x.id)}"${x.id===s.id?' selected':''}>${esc(x.code)}</option>`).join('');
+  const done=(s.done||[]).slice().reverse().map(x=>{const n=(x.checks||[]).length;const next=n<CHECKS.length?addDays(x.d,CHECKS[n]):null;return `<tr><td class="set">${esc(x.set)}</td><td>${fmt(x.d)}</td><td>${n} / 3</td><td>${next?(next<=today()?'<span class="chip info">fällig</span> ':'')+fmt(next):'<span class="chip ok">gesichert</span>'}</td><td>${next?`<button class="sm" data-act="chk" data-set="${esc(x.set)}" data-r="1">bestanden</button> <button class="sm warn" data-act="chk" data-set="${esc(x.set)}" data-r="0">nicht bestanden</button>`:''}</td></tr>`}).join('');
+  const diag=(s.diag||[]).map((d,i)=>`<tr><td>${esc(d.label)}</td><td>${fmt(d.d)}</td><td class="num">${d.add??'–'}</td><td class="num">${d.sub??'–'}</td><td class="num">${d.mul??'–'}</td><td class="num">${d.div??'–'}</td><td><button class="sm warn" data-act="deldiag" data-i="${i}" aria-label="Löschen">✕</button></td></tr>`).join('');
+  const ent=st.rows.slice().reverse().slice(0,40).map(r=>`<tr><td>${fmt(r[0])}</td><td>${r[5]==='K'?'Kontrolle':'Tag'}</td><td class="set">${esc(r[2])}</td><td class="num">${r[3]}</td><td class="num">${r[4]}</td><td><button class="sm warn" data-act="delrow" data-d="${esc(r[0])}" data-k="${esc(r[5])}" aria-label="Eintrag löschen">✕</button></td></tr>`).join('');
+  return `<div class="bar"><select id="f-stu" aria-label="Kind">${opts}</select><span><span class="set">${esc(s.set)}</span> ${esc(setName(s.set))} · ${esc(STAGE[s.stage])} seit ${fmt(s.since)}</span><span class="muted">Gruppe ${esc(s.group)} · Ziel ${goal(s)} Aufgaben/min</span></div>
+  <div class="bar">${hints(c,s,st,true)} ${s.stage===1&&!st.acc?`<button class="sm" data-act="stage" data-sid="${esc(s.id)}">Manuell: weiter zu Flüssigkeit</button>`:''} ${!st.met?`<button class="sm" data-act="set" data-sid="${esc(s.id)}">Manuell: Satz abschließen</button>`:''}</div>
+  <div class="panel" style="margin-bottom:24px"><h3>Richtige Aufgaben pro Minute</h3><div class="fig"><svg id="chart" role="img" aria-label="Verlauf der Sprintwerte"></svg></div><p class="muted small">Gestrichelt: Ziel. Senkrechte Linien: Satzwechsel. Ringe: Kontrollsprints.</p></div>
+  <div class="grid2">
+    <div><h3>Abgeschlossene Sätze und Kontrollen</h3>${done?`<div class="scroll"><table><thead><tr><th>Satz</th><th>Abgeschlossen</th><th>Kontrollen</th><th>Nächste</th><th></th></tr></thead><tbody>${done}</tbody></table></div>`:'<p class="muted">Noch kein Satz abgeschlossen.</p>'}
+      <h3 style="margin-top:24px">Eingangs- und Halbjahrestest</h3>
+      <div class="bar"><select id="d-label" aria-label="Test"><option>Eingang</option><option>Halbjahr</option><option>Schuljahresende</option></select><input type="date" id="d-date" value="${today()}" aria-label="Datum Test"></div>
+      <div class="bar"><input type="number" id="d-add" placeholder="+" aria-label="Addition, richtige Aufgaben pro Minute"><input type="number" id="d-sub" placeholder="−" aria-label="Subtraktion"><input type="number" id="d-mul" placeholder="·" aria-label="Multiplikation"><input type="number" id="d-div" placeholder=":" aria-label="Division"><button data-act="adddiag">Speichern</button></div>
+      ${diag?`<div class="scroll"><table><thead><tr><th>Test</th><th>Datum</th><th class="num">+</th><th class="num">−</th><th class="num">·</th><th class="num">:</th><th></th></tr></thead><tbody>${diag}</tbody></table></div>`:'<p class="muted small">Richtige Aufgaben pro Minute aus den vier Mischsprints (Ergebnis ÷ 2).</p>'}
+    </div>
+    <div><h3>Einträge</h3>${ent?`<div class="scroll"><table><thead><tr><th>Datum</th><th>Art</th><th>Satz</th><th class="num">Aufgaben</th><th class="num">Fehler</th><th></th></tr></thead><tbody>${ent}</tbody></table></div>`:'<p class="muted">Noch keine Einträge.</p>'}</div>
+  </div>`;
+}
+
+function viewVerwalten(){
+  const c=cls();
+  const clsRows=meta.classes.map(k=>`<tr><td><input type="text" data-act="rencls" data-cid="${esc(k.id)}" value="${esc(k.name)}" aria-label="Klassenname"></td><td class="num">${k.students.length}</td><td><button class="sm warn" data-act="delcls" data-cid="${esc(k.id)}">Löschen</button></td></tr>`).join('');
+  const setOpts=v=>SET_IDS.map(id=>`<option${id===v?' selected':''}>${id}</option>`).join('');
+  const stu=c?c.students.map(s=>`<tr data-sid="${esc(s.id)}"><td><input type="text" data-f="code" value="${esc(s.code)}" style="width:6em" aria-label="Kürzel"></td><td><select data-f="group" aria-label="Gruppe">${['A','B','C'].map(g=>`<option${g===s.group?' selected':''}>${g}</option>`).join('')}</select></td><td class="num"><input type="number" data-f="rate" value="${s.rate||''}" aria-label="Schreibtempo"></td><td class="num"><input type="number" data-f="goal" value="${s.goal||''}" placeholder="${goal(s)}" aria-label="Ziel manuell (Aufgaben pro Minute)"></td><td><select data-f="set" aria-label="Satz">${setOpts(s.set)}</select></td><td><select data-f="stage" aria-label="Stufe"><option value="1"${s.stage===1?' selected':''}>Akquisition</option><option value="2"${s.stage===2?' selected':''}>Flüssigkeit</option></select></td><td><button class="sm warn" data-act="delstu" aria-label="Kind entfernen">✕</button></td></tr>`).join(''):'';
+  return `<div class="grid2">
+  <div><h2>Klassen</h2>${clsRows?`<table><thead><tr><th>Name</th><th class="num">Kinder</th><th></th></tr></thead><tbody>${clsRows}</tbody></table>`:'<p class="muted">Noch keine Klasse.</p>'}
+    <div class="bar" style="margin-top:12px"><input type="text" id="n-cls" placeholder="z. B. 6b" aria-label="Neue Klasse"><button class="pri" data-act="addcls">Klasse anlegen</button></div>
+    ${meta.classes.some(k=>k.id==='demo')?'<button class="warn" data-act="deldemo">Beispielklasse entfernen</button>':'<button data-act="demo">Beispielklasse laden</button>'}
+  </div>
+  <div><h2>Daten und Datenschutz</h2>
+    <p class="note">Nur Kürzel oder Nummern eintragen, keine Namen. Die Zuordnung Kürzel → Name bleibt in deinem Notenbuch.</p>
+    <p class="small">${mode==='db'?'Speicherort: privater Bereich deines Claude-Kontos. Nur du siehst diese Daten, auch wenn du die Seite teilst.':'Speicherort: nur dieser Browser. Lade regelmäßig eine Sicherung herunter.'}</p>
+    <div class="bar"><button data-act="backup">Sicherung herunterladen (JSON)</button><button data-act="import">Sicherung einspielen</button><button data-act="csvall">Alle Einträge als CSV</button></div>
+  </div></div>
+  ${c?`<h2 style="margin-top:32px">Kinder in ${esc(c.name)}</h2>
+  <div class="scroll"><table id="stutab"><thead><tr><th>Kürzel</th><th>Gruppe</th><th class="num">Schreibtempo (Ziffern/min)</th><th class="num">Ziel Aufgaben (leer = auto)</th><th>Satz</th><th>Stufe</th><th></th></tr></thead><tbody>${stu}</tbody></table></div>
+  <h3 style="margin-top:20px">Kinder hinzufügen</h3><p class="muted small">Ein Kürzel pro Zeile, z. B. 01, 02 … oder Initialen. Danach Gruppe, Schreibtempo und Startsatz aus der Eingangsdiagnostik eintragen.</p>
+  <textarea id="n-stu" aria-label="Kürzel, eins pro Zeile"></textarea><div class="bar" style="margin-top:8px"><button class="pri" data-act="addstu">Hinzufügen</button></div>`:''}`;
+}
+
+/* ---------- chart ---------- */
+function drawChart(){
+  const svg=$('#chart'),c=cls();if(!svg||!c)return;
+  const s=c.students.find(x=>x.id===ui.stu);if(!s)return;
+  const W=svg.clientWidth,H=svg.clientHeight;if(!W||!H)return;
+  const rows=stuRows(c.id,s.id).filter(r=>r[3]!=null);
+  if(!rows.length){svg.innerHTML=`<text x="${W/2}" y="${H/2}" text-anchor="middle">Noch keine Sprintwerte</text>`;return}
+  const m={l:44,r:20,t:24,b:30},g=goal(s);
+  const x0=dnum(rows[0][0]),x1=Math.max(dnum(rows[rows.length-1][0]),x0+7);
+  const top=Math.max(g,...rows.map(r=>r[3]))*1.12;
+  const step=[5,10,20,25,50,100].find(v=>top/v<=5)||100;
+  const X=d=>m.l+(dnum(d)-x0)/(x1-x0)*(W-m.l-m.r),Y=v=>H-m.b-v/top*(H-m.t-m.b);
+  let h='';
+  for(let v=0;v<=top;v+=step)h+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${m.l-8}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;
+  rows.forEach((r,i)=>{if(i>0&&r[2]!==rows[i-1][2]){const x=X(r[0]);h+=`<line x1="${x}" x2="${x}" y1="${m.t-6}" y2="${H-m.b}" stroke="var(--muted)" stroke-dasharray="2 4"/><text x="${x+4}" y="${m.t+6}">${esc(r[2])}</text>`}});
+  h+=`<line x1="${m.l}" x2="${W-m.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--coral)" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W-m.r}" y="${Y(g)-8}" text-anchor="end" style="fill:var(--coral)">Ziel ${g}</text>`;
+  h+=`<polyline fill="none" stroke="var(--teal)" stroke-width="2.5" points="${rows.map(r=>X(r[0])+','+Y(r[3])).join(' ')}"/>`;
+  rows.forEach(r=>{h+=r[5]==='K'?`<circle cx="${X(r[0])}" cy="${Y(r[3])}" r="5.5" fill="var(--bg)" stroke="var(--teal)" stroke-width="2.5"><title>${fmt(r[0])}: ${r[3]} Aufgaben, ${r[4]} Fehler (Kontrolle)</title></circle>`:`<circle cx="${X(r[0])}" cy="${Y(r[3])}" r="3.5" fill="var(--teal)"><title>${fmt(r[0])}: ${r[3]} Aufgaben, ${r[4]} Fehler</title></circle>`});
+  const n=W<520?2:5;for(let i=0;i<n;i++){const d=addDays(rows[0][0],Math.round((x1-x0)*i/(n-1)));h+=`<text x="${X(d)}" y="${H-8}" text-anchor="${i===0?'start':i===n-1?'end':'middle'}">${fmt(d)}</text>`}
+  svg.innerHTML=h;
+}
+
+/* ---------- render ---------- */
+function render(){
+  if(!loaded)return;
+  renderHeader();
+  const c=cls(),main=$('#main');
+  if(chartRO){chartRO.disconnect();chartRO=null}
+  if(ui.view==='verwalten')main.innerHTML=viewVerwalten();
+  else if(!c)main.innerHTML=emptyState();
+  else if(ui.view==='klasse')main.innerHTML=viewKlasse(c);
+  else if(ui.view==='schueler'){main.innerHTML=viewSchueler(c);const svg=$('#chart');if(svg){chartRO=new ResizeObserver(drawChart);chartRO.observe(svg)}}
+  else main.innerHTML=viewErfassen(c);
+}
+function route(){const h=location.hash.slice(1);ui.view=['erfassen','klasse','schueler','verwalten'].includes(h)?h:'erfassen';render()}
+window.addEventListener('hashchange',route);
+
+/* ---------- events ---------- */
+$('#f-cls').addEventListener('change',e=>{ui.cls=e.target.value;ui.stu=null;render()});
+const main=$('#main');
+main.addEventListener('change',e=>{
+  const t=e.target,c=cls();
+  if(t.id==='f-date'&&t.value){ui.date=t.value;render();return}
+  if(t.id==='f-stu'){ui.stu=t.value;render();return}
+  if(t.dataset.act==='rencls'){const k=meta.classes.find(x=>x.id===t.dataset.cid);if(k&&t.value.trim()){k.name=t.value.trim();markDirty('meta');renderHeader()}return}
+  const tr=t.closest('tr[data-sid]');if(!tr||!c)return;
+  const s=c.students.find(x=>x.id===tr.dataset.sid);if(!s)return;
+  if(t.closest('#sheet')){
+    const dc=num(tr.querySelector('[data-f=dc]').value),err=num(tr.querySelector('[data-f=err]').value);
+    upsert(c.id,ui.date,s,ui.kind,dc,err);
+    const st=status(c.id,s);tr.querySelector('.hn').innerHTML=hints(c,s,st,true);const sp=tr.querySelector('.sp');if(sp)sp.innerHTML=spark(c,s);renderHeader();return;
+  }
+  if(t.closest('#stutab')){
+    const f=t.dataset.f;
+    if(f==='code'){if(t.value.trim())s.code=t.value.trim()}
+    else if(f==='group')s.group=t.value;
+    else if(f==='rate'||f==='goal')s[f]=num(t.value)||0;
+    else if(f==='set'){s.set=t.value;s.since=today();(s.hist=s.hist||[]).push({d:s.since,set:s.set,stage:s.stage})}
+    else if(f==='stage'){s.stage=+t.value;s.since=today();(s.hist=s.hist||[]).push({d:s.since,set:s.set,stage:s.stage})}
+    markDirty('meta');if(f==='rate'||f==='goal'){const g=tr.querySelector('[data-f=goal]');g.placeholder=goal(s)}
+  }
+});
+main.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||!e.target.closest('#sheet'))return;
+  e.preventDefault();const ins=[...main.querySelectorAll('#sheet input')];const i=ins.indexOf(e.target);
+  e.target.dispatchEvent(new Event('change',{bubbles:true}));
+  const nx=ins[i+1];if(nx){nx.focus();nx.select()}
+});
+main.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b||b.tagName==='INPUT')return;
+  const act=b.dataset.act,c=cls();
+  const s=c&&(b.dataset.sid?c.students.find(x=>x.id===b.dataset.sid):c.students.find(x=>x.id===(b.closest('tr[data-sid]')||{}).dataset?.sid)||c.students.find(x=>x.id===ui.stu));
+  if(act==='day'){ui.date=addDays(ui.date,+b.dataset.n);render()}
+  else if(act==='kind'){ui.kind=b.dataset.k;render()}
+  else if(act==='stu'){ui.stu=b.dataset.sid}
+  else if(act==='stage'&&s){advanceStage(s);markDirty('meta');toast(s.code+': jetzt Flüssigkeit in '+s.set);render()}
+  else if(act==='set'&&s){const from=s.set;advanceSet(s);markDirty('meta');toast(s.code+': '+from+' abgeschlossen, weiter mit '+s.set);render()}
+  else if(act==='chk'&&s){const x=(s.done||[]).find(y=>y.set===b.dataset.set);if(x){if(b.dataset.r==='1')(x.checks=x.checks||[]).push(today());else{x.checks=[];x.d=today();toast('Kontrollen für '+x.set+' starten neu')}markDirty('meta');render()}}
+  else if(act==='adddiag'&&s){const v=id=>num($('#'+id).value);const d={label:$('#d-label').value,d:$('#d-date').value||today(),add:v('d-add'),sub:v('d-sub'),mul:v('d-mul'),div:v('d-div')};if([d.add,d.sub,d.mul,d.div].every(x=>x==null)){toast('Mindestens einen Wert eintragen');return}(s.diag=s.diag||[]).push(d);markDirty('meta');render()}
+  else if(act==='deldiag'&&s){s.diag.splice(+b.dataset.i,1);markDirty('meta');render()}
+  else if(act==='delrow'&&s){upsert(c.id,b.dataset.d,s,b.dataset.k,null,null);render()}
+  else if(act==='addcls'){const n=$('#n-cls').value.trim();if(!n){toast('Bitte einen Namen eingeben');return}const k={id:newId(),name:n,students:[]};meta.classes.push(k);ui.cls=k.id;markDirty('meta');render()}
+  else if(act==='delcls'){const k=meta.classes.find(x=>x.id===b.dataset.cid);if(!k)return;if(!await ask('Klasse „'+k.name+'“ mit allen Einträgen löschen?','Löschen'))return;deleteClass(k.id);render()}
+  else if(act==='addstu'&&c){const codes=$('#n-stu').value.split(/\n/).map(x=>x.trim()).filter(Boolean);if(!codes.length)return;codes.forEach(x=>c.students.push(newStudent(x)));markDirty('meta');toast(codes.length+' Kinder hinzugefügt');render()}
+  else if(act==='delstu'&&c&&s){if(!await ask('Kind „'+s.code+'“ und seine Einträge entfernen?','Entfernen'))return;c.students=c.students.filter(x=>x!==s);for(const k in entries){if(k.startsWith('e_'+c.id+'_')){const before=entries[k].rows.length;entries[k].rows=entries[k].rows.filter(r=>r[1]!==s.id);if(entries[k].rows.length!==before){if(!entries[k].rows.length)delete entries[k];markDirty(k)}}}markDirty('meta');render()}
+  else if(act==='demo'){demo();render()}
+  else if(act==='deldemo'){deleteClass('demo');render()}
+  else if(act==='backup'){download('sprint-tracker-sicherung-'+today()+'.json',JSON.stringify({app:'sprint-tracker',v:1,meta,entries}),'application/json')}
+  else if(act==='import'){$('#f-import').click()}
+  else if(act==='csv'&&c){download('sprints-'+c.name.replace(/[^\w-]+/g,'_')+'-'+today()+'.csv',csv([c]),'text/csv')}
+  else if(act==='csvall'){download('sprints-alle-'+today()+'.csv',csv(meta.classes),'text/csv')}
+});
+function deleteClass(cid){meta.classes=meta.classes.filter(x=>x.id!==cid);for(const k in entries){if(k.startsWith('e_'+cid+'_')){delete entries[k];markDirty(k)}}if(ui.cls===cid)ui.cls=meta.classes[0]?meta.classes[0].id:null;markDirty('meta')}
+function csv(list){
+  const q=v=>/[;"\n]/.test(String(v))?'"'+String(v).replace(/"/g,'""')+'"':String(v);
+  const out=['Datum;Klasse;Kürzel;Satz;Aufgaben richtig;Fehler;Art'];
+  list.forEach(c=>{const code={};c.students.forEach(s=>code[s.id]=s.code);allRows(c.id).sort(byDate).forEach(r=>out.push([r[0],c.name,code[r[1]]||'?',r[2],r[3]??'',r[4],r[5]==='K'?'Kontrolle':'Tag'].map(q).join(';')))});
+  return '﻿'+out.join('\n');
+}
+async function download(name,text,type){
+  try{if(window.claude&&typeof claude.use==='function'){const d=await Promise.race([claude.use('downloads'),new Promise(r=>setTimeout(()=>r(null),3000))]);if(d){await d.save({filename:name,data:text});toast('Datei gespeichert');return}}}catch(e){if(e&&e.code!=='not_granted'&&e.code!=='capability_disabled'){toast('Download abgebrochen');return}}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.append(a);a.click();a.remove();toast('Download gestartet')}catch(e){toast('Download nicht möglich')}
+}
+$('#f-import').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  let v;try{v=JSON.parse(await f.text())}catch(err){toast('Datei ist keine gültige Sicherung');return}
+  if(!v||v.app!=='sprint-tracker'||!v.meta||!Array.isArray(v.meta.classes)){toast('Datei ist keine Sprint-Tracker-Sicherung');return}
+  if(!await ask('Sicherung einspielen? Die aktuellen Daten werden ersetzt.','Ersetzen'))return;
+  Object.keys(entries).forEach(k=>{if(!(v.entries||{})[k])dirty.add('del:'+k)});
+  meta=v.meta;entries=v.entries||{};Object.keys(entries).forEach(k=>dirty.add(k));markDirty('meta');
+  ui.cls=meta.classes[0]?meta.classes[0].id:null;toast('Sicherung eingespielt');render();
+});
+
+/* ---------- demo class (invented values) ---------- */
+function demo(){
+  if(meta.classes.some(k=>k.id==='demo')){ui.cls='demo';return}
+  let seed=11;const rnd=()=>(seed=seed*16807%2147483647)/2147483647;
+  const end=today(),start=addDays(end,-34),c={id:'demo',name:'5x (Beispiel)',students:[]};
+  const plan=[['A','M2',1],['A','A6',1],['A','M3',1],['B','M4',2],['B','M5',2],['B','M4',2],['B','M6',2],['B','M3',2],['B','M7',2],['B','M5',2],['C','E1',2],['C','E2',2]];
+  plan.forEach((p,i)=>c.students.push({id:'d'+(i+1),code:'S'+pad(i+1),group:p[0],rate:66+Math.round(rnd()*45),goal:0,set:p[1],stage:p[2],since:start,hist:[],done:[],diag:[{label:'Eingang',d:start,add:Math.round(14+rnd()*18),sub:Math.round(10+rnd()*15),mul:Math.round(8+rnd()*18),div:Math.round(6+rnd()*15)}],lvl:0.5+rnd()*0.25,spd:0.012+rnd()*0.02}));
+  meta.classes.push(c);
+  for(let d=start;d<end;d=addDays(d,1)){
+    const w=wday(d);if(w===0||w===6)continue;const k=w===5?'K':'T';
+    c.students.forEach(s=>{
+      if(rnd()<0.06)return;
+      const g=goal(s),inSet=dnum(d)-dnum(s.since);
+      s.lvl=Math.min(1.25,s.lvl+s.spd+(rnd()-0.4)*0.02);
+      const dc=Math.max(3,Math.min(60,Math.round(g*(s.lvl-(inSet<2?0.12:0))+(rnd()-0.5)*5)));
+      const err=s.stage===1?Math.max(0,Math.round(2.5-inSet*0.4+rnd()*1.2)):Math.max(0,Math.round(rnd()*3.2-s.lvl));
+      const key='e_demo_'+d.slice(0,7);(entries[key]=entries[key]||{rows:[]}).rows.push([d,s.id,s.set,dc,err,k]);
+      const cur=stuRows('demo',s.id).filter(r=>r[2]===s.set&&r[0]>=s.since).slice(-2);
+      if(s.stage===1&&cur.length===2&&cur.every(r=>r[4]===0))advanceStage(s,addDays(d,1));
+      else if(s.stage===2&&cur.length===2&&cur.every(r=>r[3]>=g&&r[4]<=2)&&s.group!=='C'&&d<addDays(end,-3)){advanceSet(s,addDays(d,1));s.lvl=0.62+rnd()*0.1}
+    });
+  }
+  c.students.forEach(s=>{(s.done||[]).forEach(x=>{const n=Math.floor((dnum(end)-dnum(x.d))/7);for(let i=0;i<CHECKS.length;i++)if(dnum(end)-dnum(x.d)>=CHECKS[i]+2&&rnd()<0.8)x.checks.push(addDays(x.d,CHECKS[i]));delete x.n});delete s.lvl;delete s.spd});
+  Object.keys(entries).filter(k=>k.startsWith('e_demo_')).forEach(markDirty);
+  ui.cls='demo';markDirty('meta');toast('Beispielklasse geladen');
+}
+
+boot();
+}
+</script>
+</body>
+</html>

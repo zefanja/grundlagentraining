@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprint-Tracker Lehrkraft</title>
+<style>
+/* VOICE work: a teacher's daily logbook, calm, dense, exact
+   IDEA the coach's lane sheet: one row per runner, today's value, the target line
+   PICTURE the entry sheet itself; per child two curves (paper, app) against their target lines; a fact grid 0–10 × 0–10
+   COLOUR white ground, deep teal band, coral for what needs action, violet for app values
+   TYPE system UI (no external fonts: data protection), tabular figures
+   LAYOUT teal band with title, class and five figures; tabs; content full width. Phone: stacked */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0e1716);--ink:light-dark(#12201f,#e6efed);--muted:light-dark(#5b6b69,#9fb2af);--line:light-dark(#dfe7e5,#24322f);--soft:light-dark(#eef6f5,#15211f);--teal:light-dark(#0f6e6e,#1b8a86);--coral:light-dark(#d9452f,#ff7a63);--coral-soft:light-dark(#fde9e5,#3a1f1a);--ok:light-dark(#0f6e6e,#5fd0c6);--ok-soft:light-dark(#e3f3f1,#163330);--app:light-dark(#6a4fb3,#a68cf0);--panel:light-dark(#f7faf9,#121d1c)}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-x:clip}
+h1{font-size:clamp(26px,3.4vw,34px);line-height:1.05;margin:0;letter-spacing:-.01em}
+h2{font-size:21px;margin:0 0 12px}
+h3{font-size:16px;margin:0 0 8px}
+.band{background:var(--teal);color:#fff;padding:20px max(4vw,16px) 16px}
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between;max-width:1240px;margin:0 auto}
+.top .sub{opacity:.85;font-size:14px;margin-top:4px}
+.band select{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.45)}
+.band select option{color:#12201f}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(8.5em,1fr));gap:8px 20px;max-width:1240px;margin:14px auto 0}
+.fig-c{border-top:1px solid rgba(255,255,255,.35);padding-top:6px}
+.fig-n{font-size:26px;line-height:1.1;font-weight:600;font-variant-numeric:tabular-nums}
+.fig-l{font-size:13px;opacity:.85}
+nav{border-bottom:1px solid var(--line);padding:0 max(4vw,16px);position:sticky;top:0;background:var(--bg);z-index:5}
+nav .in{max-width:1240px;margin:0 auto;display:flex;gap:4px;align-items:center;overflow-x:auto}
+nav a{flex:none;padding:12px 14px;color:var(--muted);text-decoration:none;font-weight:500;border-bottom:3px solid transparent}
+nav a.on{color:var(--ink);border-bottom-color:var(--teal)}
+#status{margin-left:auto;flex:none;font-size:13px;color:var(--muted);padding-left:12px;white-space:nowrap}
+#status.bad{color:var(--coral);font-weight:600}
+main{max-width:1240px;margin:0 auto;padding:20px max(4vw,16px) 48px}
+select,input,textarea,button{font:inherit;font-size:16px}
+select,input,textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--ink);min-height:44px}
+input[type=number]{width:5.5em;text-align:right;font-variant-numeric:tabular-nums}
+textarea{width:100%;min-height:110px}
+button{min-height:44px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;font-weight:500}
+button.pri{background:var(--teal);color:#fff;border-color:var(--teal)}
+button.sm{min-height:34px;padding:4px 10px;font-size:14px}
+button.warn{color:var(--coral)}
+button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid color-mix(in srgb,var(--teal) 60%,transparent);outline-offset:1px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent}
+.seg button.on{background:var(--teal);color:#fff}
+.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:16px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th{font-size:13px;font-weight:600;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.code{font-weight:600}
+.code a{color:inherit}
+.chip{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-size:13px;font-weight:500;margin:2px 4px 2px 0;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.bad{background:var(--coral-soft);color:var(--coral)}
+.chip.info{background:var(--soft);color:var(--muted)}
+.set{font-weight:600}
+.app{color:var(--app);font-weight:600}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.fig{position:relative;min-height:300px}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+svg text{font:13px system-ui,sans-serif;fill:var(--muted);paint-order:stroke;stroke:var(--bg);stroke-width:4px}
+.rowbar{display:grid;grid-template-columns:3.2em minmax(0,1fr) 2.5em;gap:10px;align-items:center;margin:6px 0}
+.rowbar .b{height:18px;background:var(--teal);border-radius:4px}
+.empty{padding:32px;text-align:center;border:1px dashed var(--line);border-radius:12px}
+.note{border-left:3px solid var(--teal);padding:8px 12px;background:var(--soft);border-radius:0 8px 8px 0;font-size:14px}
+.key{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:13px;color:var(--muted)}
+.key i{display:inline-block;width:18px;height:3px;border-radius:2px}
+.hm{border-collapse:separate;border-spacing:3px;width:auto}
+.hm td,.hm th{width:44px;height:38px;text-align:center;padding:0;border:0;border-radius:6px;font-size:12px;font-variant-numeric:tabular-nums}
+.hm th{color:var(--muted);font-weight:600}
+.pinv{font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:.1em}
+.login{max-width:380px;margin:8vh auto;padding:0 16px}
+.login input{width:100%;margin-bottom:12px}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}
+#modal[hidden]{display:none}
+#modal .box{background:var(--bg);border-radius:12px;padding:20px;max-width:420px;width:100%}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
+#print{display:none}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+@media(max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}.hide-s{display:none}}
+@media(max-width:600px){td,th{padding:6px 4px}input[type=number]{width:4.2em}}
+@media print{
+  body>*:not(#print){display:none!important}
+  #print{display:block;color:#000;background:#fff}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .card{border:1px dashed #999;padding:5mm;height:54mm;display:grid;grid-template-columns:1fr 34mm;gap:4mm;break-inside:avoid;font-size:11pt}
+  .card svg{width:34mm;height:34mm}
+  .card .pin{font:700 18pt ui-monospace,monospace;letter-spacing:.1em}
+}
+</style>
+</head>
+<body>
+<div id="appRoot">
+<header class="band">
+  <div class="top">
+    <div><h1>Sprint-Tracker</h1><div class="sub">Grundaufgaben 1+1 und 1·1 · Papier und App</div></div>
+    <div class="bar" style="margin:0"><label class="small" for="f-cls">Klasse</label><select id="f-cls"></select><button class="sm" id="logout" style="background:transparent;color:#fff;border-color:rgba(255,255,255,.5)">Abmelden</button></div>
+  </div>
+  <div class="figs" id="figs"></div>
+</header>
+<nav><div class="in">
+  <a href="#erfassen" data-v="erfassen">Papier erfassen</a>
+  <a href="#klasse" data-v="klasse">Klasse</a>
+  <a href="#schueler" data-v="schueler">Schüler</a>
+  <a href="#fakten" data-v="fakten">Fakten</a>
+  <a href="#verwalten" data-v="verwalten">Verwalten</a>
+  <span id="status"></span>
+</div></nav>
+<main id="main"><div class="empty">Lädt…</div></main>
+</div>
+<div id="modal" hidden><div class="box"><p></p><div class="bar" style="justify-content:flex-end;margin:0"><button class="no">Abbrechen</button><button class="ok pri">OK</button></div></div></div>
+<div id="toast" role="status"></div>
+<div id="print"></div>
+<script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="vendor/qrcode.js"></script>
+<script src="shared.js"></script>
+<script>
+{
+const C = window.SPRINT_CONFIG || {};
+const S = window.ST;
+const $ = q => document.querySelector(q);
+const esc = S.esc, fmt = S.fmtDate, today = S.today, dnum = S.dnum, addDays = S.addDays;
+const CHECKS = [7, 14, 28];
+const sb = window.supabase && C.supabaseUrl ? window.supabase.createClient(C.supabaseUrl, C.supabaseAnonKey) : null;
+
+let ui = { view: 'erfassen', cls: null, date: today(), kind: 'T', stu: null, days: 30, op: 'M' };
+let classes = [], students = [], sprints = [], pins = {}, chartRO = null, factCache = {};
+
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2800); }
+function setStatus(t, bad) { const el = $('#status'); el.textContent = t || ''; el.classList.toggle('bad', !!bad); }
+function ask(msg, ok) { return new Promise(res => { const m = $('#modal'); m.querySelector('p').textContent = msg; const b = m.querySelector('.ok'); b.textContent = ok || 'OK'; m.hidden = false; b.focus(); const done = v => { m.hidden = true; res(v); }; b.onclick = () => done(true); m.querySelector('.no').onclick = () => done(false); }); }
+async function q(p, what) {
+  const { data, error } = await p;
+  if (error) { setStatus('Fehler: ' + (what || '') + ' ' + (error.message || ''), true); throw error; }
+  setStatus('Gespeichert'); return data;
+}
+
+/* ---------- Anmeldung ---------- */
+function viewLogin(msg) {
+  $('#appRoot').innerHTML = `<div class="login"><h1 style="margin-bottom:8px">Sprint-Tracker</h1><p class="muted">Anmeldung für Lehrkräfte</p>
+  ${msg ? `<p class="chip bad">${esc(msg)}</p>` : ''}
+  <form id="lf"><input type="email" id="le" placeholder="E-Mail" autocomplete="username" required><input type="password" id="lp" placeholder="Passwort" autocomplete="current-password" required><button class="pri" style="width:100%">Anmelden</button></form>
+  <p class="muted small">Konten für Lehrkräfte legt der Administrator in Supabase an (Authentication → Users).</p></div>`;
+  $('#lf').addEventListener('submit', async e => {
+    e.preventDefault();
+    const { error } = await sb.auth.signInWithPassword({ email: $('#le').value.trim(), password: $('#lp').value });
+    if (error) viewLogin('Anmeldung fehlgeschlagen.'); else location.reload();
+  });
+}
+
+/* ---------- Laden ---------- */
+async function fetchAll(builderFn) {
+  const out = []; const size = 1000;
+  for (let from = 0; ; from += size) {
+    const { data, error } = await builderFn().range(from, from + size - 1);
+    if (error) throw error;
+    out.push(...data); if (data.length < size) break;
+  }
+  return out;
+}
+async function loadClasses() { classes = await q(sb.from('classes').select('*').order('created_at'), 'Klassen'); if (!classes.some(c => c.id === ui.cls)) ui.cls = classes[0] ? classes[0].id : null; }
+async function loadClass() {
+  students = []; sprints = []; factCache = {};
+  if (!ui.cls) return;
+  students = await q(sb.from('students').select('*').eq('class_id', ui.cls).order('code'), 'Kinder');
+  const ids = students.map(s => s.id);
+  if (ids.length) sprints = await fetchAll(() => sb.from('sprints').select('id,student_id,d,set_id,correct,errors,kind,medium,mode,created_at').in('student_id', ids).gte('d', addDays(today(), -400)).order('d').order('created_at'));
+}
+
+/* ---------- Berechnungen ---------- */
+const cls = () => classes.find(c => c.id === ui.cls) || null;
+const stuById = id => students.find(s => s.id === id);
+const rowsOf = sid => sprints.filter(r => r.student_id === sid);
+function dueChecks(s) { const out = []; (s.done || []).forEach(x => { const n = (x.checks || []).length; if (n < CHECKS.length) { const dd = addDays(x.d, CHECKS[n]); if (dd <= today()) out.push({ set: x.set, d: dd }); } }); return out; }
+function status(s) {
+  const rows = rowsOf(s.id).filter(r => r.mode === 'sprint');
+  const cur = rows.filter(r => r.set_id === s.set_id && r.d >= s.since);
+  const gP = S.goalPaper(s), gA = S.goalApp(s);
+  const last2 = m => cur.filter(r => r.medium === m).slice(-2);
+  const met = m => { const l = last2(m), g = m === 'app' ? gA : gP; return s.stage === 2 && l.length === 2 && l.every(r => r.correct >= g && r.errors <= 2); };
+  const acc = m => { const l = last2(m); return s.stage === 1 && l.length === 2 && l.every(r => r.errors === 0); };
+  const days = dnum(today()) - dnum(s.since);
+  const st = { rows, cur, gP, gA, days, metP: met('papier'), metA: met('app'), acc: acc('papier') || acc('app') };
+  st.met = st.metP || st.metA; st.stall = !st.met && !st.acc && days >= 14; st.due = dueChecks(s);
+  st.lastP = rows.filter(r => r.medium === 'papier').slice(-1)[0] || null;
+  st.lastA = rows.filter(r => r.medium === 'app').slice(-1)[0] || null;
+  st.app7 = rows.filter(r => r.medium === 'app' && dnum(today()) - dnum(r.d) < 7).length;
+  return st;
+}
+function hints(s, st, btn) {
+  let h = '';
+  if (st.met) h += `<span class="chip ok">Kriterium erreicht${st.metP && st.metA ? '' : st.metA ? ' (App)' : ' (Papier)'}</span>${btn ? `<button class="sm" data-act="set" data-sid="${esc(s.id)}">Weiter zu ${esc(S.nextSet(s.set_id))}</button>` : ''}`;
+  if (st.acc) h += `<span class="chip ok">2× fehlerfrei</span>${btn ? `<button class="sm" data-act="stage" data-sid="${esc(s.id)}">Weiter zu Flüssigkeit</button>` : ''}`;
+  if (st.stall) h += `<span class="chip bad">Stillstand seit ${st.days} Tagen</span>`;
+  st.due.forEach(d => { h += `<span class="chip info">Kontrolle ${esc(d.set)} fällig</span>`; });
+  return h || '<span class="muted small">–</span>';
+}
+async function updateStudent(s, patch) { Object.assign(s, patch); await q(sb.from('students').update(patch).eq('id', s.id), 'Kind'); }
+async function advanceStage(s) { await updateStudent(s, { stage: 2, since: today() }); }
+async function advanceSet(s) { const done = (s.done || []).concat([{ set: s.set_id, d: today(), checks: [] }]); await updateStudent(s, { done, set_id: S.nextSet(s.set_id), stage: 1, since: today() }); }
+
+/* ---------- Kopf ---------- */
+function renderHeader() {
+  const sel = $('#f-cls');
+  sel.innerHTML = classes.length ? classes.map(c => `<option value="${esc(c.id)}"${c.id === ui.cls ? ' selected' : ''}>${esc(c.name)}</option>`).join('') : '<option>keine Klasse</option>';
+  let f = [];
+  if (cls()) {
+    const st = students.map(status);
+    const entered = students.filter(s => sprints.some(r => r.student_id === s.id && r.d === ui.date && r.kind === ui.kind && r.medium === 'papier')).length;
+    const appToday = new Set(sprints.filter(r => r.medium === 'app' && r.mode === 'sprint' && r.d === today()).map(r => r.student_id)).size;
+    f = [[entered + ' / ' + students.length, 'Papier eingetragen (' + fmt(ui.date) + ')'], [appToday + ' / ' + students.length, 'heute in der App'], [st.filter(x => x.met || x.acc).length, 'Kriterium erreicht'], [st.filter(x => x.stall).length, 'Stillstand ≥ 14 Tage'], [st.reduce((a, x) => a + x.due.length, 0), 'Kontrollen fällig']];
+  }
+  $('#figs').innerHTML = f.map(([n, l]) => `<div class="fig-c"><div class="fig-n">${esc(n)}</div><div class="fig-l">${esc(l)}</div></div>`).join('');
+  document.querySelectorAll('nav a').forEach(a => a.classList.toggle('on', a.dataset.v === ui.view));
+}
+
+/* ---------- Ansichten ---------- */
+function emptyState() { return `<div class="empty"><h2>Noch keine Klasse</h2><p class="muted">Lege unter „Verwalten“ eine Klasse mit Kürzeln an.</p><a href="#verwalten"><button class="pri">Klasse anlegen</button></a></div>`; }
+function spark(s) {
+  const rows = rowsOf(s.id).filter(r => r.mode === 'sprint' && r.medium === 'papier').slice(-10); if (!rows.length) return '<span class="muted small">–</span>';
+  const g = S.goalPaper(s), W = 96, H = 26, mx = Math.max(g, ...rows.map(r => r.correct)) * 1.1;
+  const X = i => rows.length < 2 ? W / 2 : 2 + i * (W - 4) / (rows.length - 1), Y = v => H - 2 - v / mx * (H - 4);
+  return `<svg width="${W}" height="${H}" aria-hidden="true"><line x1="0" x2="${W}" y1="${Y(g)}" y2="${Y(g)}" stroke="var(--coral)" stroke-dasharray="3 3"/><polyline fill="none" stroke="var(--teal)" stroke-width="2" points="${rows.map((r, i) => X(i) + ',' + Y(r.correct)).join(' ')}"/></svg>`;
+}
+function viewErfassen() {
+  const rows = students.map(s => {
+    const r = sprints.find(x => x.student_id === s.id && x.d === ui.date && x.kind === ui.kind && x.medium === 'papier'), st = status(s);
+    return `<tr data-sid="${esc(s.id)}"><td class="code"><a href="#schueler" data-act="stu" data-sid="${esc(s.id)}">${esc(s.code)}</a></td><td><span class="set" title="${esc(S.setName(s.set_id))}">${esc(s.set_id)}</span> <span class="muted small">${s.stage === 1 ? 'Akq.' : 'Fl.'}</span></td><td class="num">${st.gP}</td><td class="hide-s sp">${spark(s)}</td><td class="num"><input type="number" inputmode="numeric" min="0" data-f="correct" aria-label="Aufgaben richtig ${esc(s.code)}" value="${r ? r.correct : ''}"></td><td class="num"><input type="number" inputmode="numeric" min="0" data-f="errors" aria-label="Fehler ${esc(s.code)}" value="${r ? r.errors : ''}"></td><td class="hide-s app num">${st.lastA ? st.lastA.correct + ' / ' + st.gA : '–'}</td><td class="hn">${hints(s, st, true)}</td></tr>`;
+  }).join('');
+  return `<div class="bar"><button class="sm" data-act="day" data-n="-1" aria-label="Vorheriger Tag">◀</button><input type="date" id="f-date" value="${esc(ui.date)}" aria-label="Datum"><button class="sm" data-act="day" data-n="1" aria-label="Nächster Tag">▶</button>
+    <div class="seg" role="group" aria-label="Art"><button data-act="kind" data-k="T" class="${ui.kind === 'T' ? 'on' : ''}">Tagessprint</button><button data-act="kind" data-k="K" class="${ui.kind === 'K' ? 'on' : ''}">Kontrollsprint (Woche)</button></div>
+    <span class="muted small">Enter springt weiter. Leere Felder = nicht dabei.</span></div>
+  ${students.length ? `<div class="scroll"><table id="sheet"><thead><tr><th>Kürzel</th><th>Satz</th><th class="num">Ziel</th><th class="hide-s">Papier, letzte 10</th><th class="num">Aufgaben richtig</th><th class="num">Fehler</th><th class="hide-s num">App zuletzt</th><th>Hinweis</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<div class="empty">Diese Klasse hat noch keine Kinder.</div>'}
+  <p class="muted small">Papier und App haben getrennte Ziele: Papier = Schreibtempo ÷ 2,5, App = Tipptempo ÷ 4 (beides in richtigen Aufgaben pro Minute). Das Kriterium gilt erfüllt, wenn es in einem der beiden Medien zweimal in Folge erreicht ist.</p>`;
+}
+function viewKlasse() {
+  if (!students.length) return '<div class="empty">Noch keine Kinder in dieser Klasse.</div>';
+  const t = today(), list = students.map(s => ({ s, st: status(s) })).sort((a, b) => S.IDS.indexOf(a.s.set_id) - S.IDS.indexOf(b.s.set_id) || a.s.code.localeCompare(b.s.code));
+  const counts = {}; students.forEach(s => counts[s.set_id] = (counts[s.set_id] || 0) + 1);
+  const mx = Math.max(...Object.values(counts));
+  const bars = S.IDS.filter(id => counts[id]).map(id => `<div class="rowbar"><span class="set">${id}</span><div><div class="b" style="width:${counts[id] / mx * 100}%" title="${esc(S.setName(id))}"></div></div><span class="num">${counts[id]}</span></div>`).join('');
+  const rows = list.map(({ s, st }) => `<tr><td class="code"><a href="#schueler" data-act="stu" data-sid="${esc(s.id)}">${esc(s.code)}</a></td><td>${esc(s.grp)}</td><td><span class="set">${esc(s.set_id)}</span> <span class="muted small">${s.stage === 1 ? 'Akquisition' : 'Flüssigkeit'}</span></td><td class="num">${st.days}</td><td class="num">${st.lastP ? st.lastP.correct + ' / ' + st.gP : '– / ' + st.gP}</td><td class="num app">${st.lastA ? st.lastA.correct + ' / ' + st.gA : '–'}</td><td class="num">${st.app7}</td><td>${hints(s, st, true)}</td></tr>`).join('');
+  return `<div class="grid2" style="margin-bottom:24px"><div class="panel"><h3>Kinder pro Satz</h3>${bars}</div><div class="panel"><h3>So liest du die Tabelle</h3><p class="small">„Tage“ zählt seit Beginn des aktuellen Satzes bzw. der Stufe. Papier und App stehen getrennt, jeweils letzter Wert / Ziel. „App 7 T.“ = Sprints in der App in den letzten 7 Tagen.</p><button data-act="csv">Klasse als CSV exportieren</button></div></div>
+  <div class="scroll"><table><thead><tr><th>Kürzel</th><th>Gr.</th><th>Satz · Stufe</th><th class="num">Tage</th><th class="num">Papier</th><th class="num">App</th><th class="num">App 7 T.</th><th>Hinweise</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function viewSchueler() {
+  if (!students.length) return '<div class="empty">Noch keine Kinder in dieser Klasse.</div>';
+  let s = stuById(ui.stu); if (!s) { s = students[0]; ui.stu = s.id; }
+  const st = status(s);
+  const opts = students.map(x => `<option value="${esc(x.id)}"${x.id === s.id ? ' selected' : ''}>${esc(x.code)}</option>`).join('');
+  const done = (s.done || []).slice().reverse().map(x => { const n = (x.checks || []).length, next = n < CHECKS.length ? addDays(x.d, CHECKS[n]) : null; return `<tr><td class="set">${esc(x.set)}</td><td>${fmt(x.d)}</td><td>${n} / 3</td><td>${next ? (next <= today() ? '<span class="chip info">fällig</span> ' : '') + fmt(next) : '<span class="chip ok">gesichert</span>'}</td><td>${next ? `<button class="sm" data-act="chk" data-set="${esc(x.set)}" data-r="1">bestanden</button> <button class="sm warn" data-act="chk" data-set="${esc(x.set)}" data-r="0">nicht bestanden</button>` : ''}</td></tr>`; }).join('');
+  const diag = (s.diag || []).map((d, i) => `<tr><td>${esc(d.label)}</td><td>${fmt(d.d)}</td><td class="num">${d.add ?? '–'}</td><td class="num">${d.sub ?? '–'}</td><td class="num">${d.mul ?? '–'}</td><td class="num">${d.div ?? '–'}</td><td><button class="sm warn" data-act="deldiag" data-i="${i}" aria-label="Löschen">✕</button></td></tr>`).join('');
+  const ent = rowsOf(s.id).slice().reverse().slice(0, 40).map(r => `<tr><td>${fmt(r.d)}</td><td>${r.medium === 'app' ? '<span class="app">App</span>' : 'Papier'}${r.kind === 'K' ? ' · Kontrolle' : ''}${r.mode !== 'sprint' ? ' · ' + (r.mode === 'tipp' ? 'Tipptest' : 'Üben') : ''}</td><td class="set">${esc(r.set_id)}</td><td class="num">${r.correct}</td><td class="num">${r.errors}</td><td><button class="sm warn" data-act="delrow" data-id="${r.id}" aria-label="Eintrag löschen">✕</button></td></tr>`).join('');
+  return `<div class="bar"><select id="f-stu" aria-label="Kind">${opts}</select><span><span class="set">${esc(s.set_id)}</span> ${esc(S.setName(s.set_id))} · ${s.stage === 1 ? 'Akquisition' : 'Flüssigkeit'} seit ${fmt(s.since)}</span><span class="muted">Gruppe ${esc(s.grp)} · Ziel Papier ${st.gP} · <span class="app">Ziel App ${st.gA}</span></span></div>
+  <div class="bar">${hints(s, st, true)} ${s.stage === 1 && !st.acc ? `<button class="sm" data-act="stage" data-sid="${esc(s.id)}">Manuell: weiter zu Flüssigkeit</button>` : ''} ${!st.met ? `<button class="sm" data-act="set" data-sid="${esc(s.id)}">Manuell: Satz abschließen</button>` : ''}</div>
+  <div class="panel" style="margin-bottom:24px"><h3>Richtige Aufgaben pro Minute</h3><div><span class="key"><i style="background:var(--teal)"></i>Papier</span><span class="key"><i style="background:var(--app)"></i>App</span><span class="key">gestrichelt: Ziele · senkrecht: Satzwechsel</span></div><div class="fig"><svg id="chart" role="img" aria-label="Verlauf der Sprintwerte"></svg></div></div>
+  <div class="grid2">
+    <div><h3>Schwächste Aufgaben in der App (60 Tage)</h3><div id="stufacts" class="muted small">Lädt…</div>
+      <h3 style="margin-top:24px">Abgeschlossene Sätze und Kontrollen</h3>${done ? `<div class="scroll"><table><thead><tr><th>Satz</th><th>Abgeschlossen</th><th>Kontrollen</th><th>Nächste</th><th></th></tr></thead><tbody>${done}</tbody></table></div>` : '<p class="muted">Noch kein Satz abgeschlossen.</p>'}
+      <h3 style="margin-top:24px">Eingangs- und Halbjahrestest</h3>
+      <div class="bar"><select id="d-label" aria-label="Test"><option>Eingang</option><option>Halbjahr</option><option>Schuljahresende</option></select><input type="date" id="d-date" value="${today()}" aria-label="Datum Test"></div>
+      <div class="bar"><input type="number" id="d-add" placeholder="+" aria-label="Addition"><input type="number" id="d-sub" placeholder="−" aria-label="Subtraktion"><input type="number" id="d-mul" placeholder="·" aria-label="Multiplikation"><input type="number" id="d-div" placeholder=":" aria-label="Division"><button data-act="adddiag">Speichern</button></div>
+      ${diag ? `<div class="scroll"><table><thead><tr><th>Test</th><th>Datum</th><th class="num">+</th><th class="num">−</th><th class="num">·</th><th class="num">:</th><th></th></tr></thead><tbody>${diag}</tbody></table></div>` : '<p class="muted small">Richtige Aufgaben pro Minute aus den vier Mischsprints (Ergebnis ÷ 2).</p>'}
+    </div>
+    <div><h3>Einträge</h3>${ent ? `<div class="scroll"><table><thead><tr><th>Datum</th><th>Art</th><th>Satz</th><th class="num">Richtig</th><th class="num">Fehler</th><th></th></tr></thead><tbody>${ent}</tbody></table></div>` : '<p class="muted">Noch keine Einträge.</p>'}</div>
+  </div>`;
+}
+async function loadStudentFacts(s) {
+  const el = $('#stufacts'); if (!el) return;
+  try {
+    const data = await q(sb.rpc('teacher_fact_stats', { p_class: ui.cls, p_student: s.id, p_days: 60 }), 'Fakten');
+    const list = (data || []).filter(r => r.n >= 2).map(r => ({ ...r, rate: r.errors / r.n })).sort((a, b) => (b.rate - a.rate) || (b.median_ms - a.median_ms)).slice(0, 10);
+    if (!$('#stufacts')) return;
+    el.className = '';
+    el.innerHTML = list.length ? `<table><thead><tr><th>Aufgabe</th><th>Satz</th><th class="num">Versuche</th><th class="num">Fehler</th><th class="num">typ. Zeit</th></tr></thead><tbody>${list.map(r => `<tr><td>${esc(r.fact)}</td><td class="set">${esc(r.set_id)}</td><td class="num">${r.n}</td><td class="num">${r.errors}</td><td class="num">${(r.median_ms / 1000).toFixed(1).replace('.', ',')} s</td></tr>`).join('')}</tbody></table>` : '<p class="muted small">Noch zu wenige App-Antworten.</p>';
+  } catch (e) { el.textContent = 'Konnte nicht geladen werden.'; }
+}
+function viewFakten() {
+  return `<div class="bar"><div class="seg"><button data-act="op" data-o="M" class="${ui.op === 'M' ? 'on' : ''}">Einmaleins</button><button data-act="op" data-o="A" class="${ui.op === 'A' ? 'on' : ''}">Einspluseins</button></div>
+    <select id="f-days" aria-label="Zeitraum">${[14, 30, 60, 120].map(d => `<option value="${d}"${d === ui.days ? ' selected' : ''}>letzte ${d} Tage</option>`).join('')}</select>
+    <span class="muted small">Jede Zelle ist eine Faktenfamilie (z. B. 7 · 8, 8 · 7, 56 : 7, 56 : 8). Zahl = typische Antwortzeit in Sekunden, rot = langsam oder fehleranfällig.</span></div>
+    <div class="grid2"><div class="scroll" id="hm">Lädt…</div><div id="worst"></div></div>`;
+}
+async function loadFakten() {
+  const key = ui.cls + '|' + ui.days;
+  let data = factCache[key];
+  if (!data) { try { data = factCache[key] = await q(sb.rpc('teacher_fact_stats', { p_class: ui.cls, p_student: null, p_days: ui.days }), 'Fakten'); } catch (e) { $('#hm').textContent = 'Konnte nicht geladen werden.'; return; } }
+  const fam = {};
+  (data || []).forEach(r => { const p = S.parseFact(r.fact); if (!p || p.track !== ui.op) return; const k = p.a + ',' + p.b; const f = fam[k] || (fam[k] = { a: p.a, b: p.b, set: p.set, n: 0, e: 0, msw: 0 }); f.n += r.n; f.e += r.errors; f.msw += r.median_ms * r.n; });
+  Object.values(fam).forEach(f => { f.ms = f.msw / f.n; f.rate = f.e / f.n; });
+  const cell = (a, b) => fam[Math.min(a, b) + ',' + Math.max(a, b)];
+  const color = f => { if (!f || f.n < 3) return 'var(--soft)'; const bad = Math.min(1, Math.max((f.ms - 1500) / 3000, f.rate * 3)); return `color-mix(in srgb, var(--coral) ${Math.round(bad * 85)}%, var(--ok-soft))`; };
+  let h = '<table class="hm"><thead><tr><th>' + (ui.op === 'M' ? S.DOT : '+') + '</th>' + Array.from({ length: 11 }, (_, i) => `<th>${i}</th>`).join('') + '</tr></thead><tbody>';
+  for (let a = 0; a <= 10; a++) {
+    h += `<tr><th>${a}</th>`;
+    for (let b = 0; b <= 10; b++) { const f = cell(a, b); h += `<td style="background:${color(f)}" title="${f ? esc(`${a} ${ui.op === 'M' ? S.DOT : '+'} ${b}: ${f.n} Antworten, ${Math.round(f.rate * 100)} % Fehler, ${(f.ms / 1000).toFixed(1)} s (${f.set})`) : 'keine Daten'}">${f && f.n >= 3 ? (f.ms / 1000).toFixed(1).replace('.', ',') : ''}</td>`; }
+    h += '</tr>';
+  }
+  h += '</tbody></table>';
+  const worst = Object.values(fam).filter(f => f.n >= 3).sort((x, y) => (y.rate * 3 + y.ms / 3000) - (x.rate * 3 + x.ms / 3000)).slice(0, 12);
+  if (!$('#hm')) return;
+  $('#hm').innerHTML = Object.keys(fam).length ? h : '<div class="empty">Noch keine App-Antworten in diesem Zeitraum.</div>';
+  $('#worst').innerHTML = worst.length ? `<h3>Schwächste Familien der Klasse</h3><table><thead><tr><th>Familie</th><th>Satz</th><th class="num">Antworten</th><th class="num">Fehler</th><th class="num">typ. Zeit</th></tr></thead><tbody>${worst.map(f => `<tr><td>${f.a} ${ui.op === 'M' ? S.DOT : '+'} ${f.b}</td><td class="set">${esc(f.set || '')}</td><td class="num">${f.n}</td><td class="num">${Math.round(f.rate * 100)} %</td><td class="num">${(f.ms / 1000).toFixed(1).replace('.', ',')} s</td></tr>`).join('')}</tbody></table><p class="muted small">Gut für die Ausbau-Minute: diese Familien gemeinsam im Chor wiederholen.</p>` : '';
+}
+function viewVerwalten() {
+  const c = cls();
+  const clsRows = classes.map(k => `<tr><td><input type="text" data-act="rencls" data-cid="${esc(k.id)}" value="${esc(k.name)}" aria-label="Klassenname"></td><td class="pinv">${esc(k.join_code)}</td><td><button class="sm warn" data-act="delcls" data-cid="${esc(k.id)}">Löschen</button></td></tr>`).join('');
+  const setOpts = v => S.IDS.map(id => `<option${id === v ? ' selected' : ''}>${id}</option>`).join('');
+  const stu = students.map(s => `<tr data-sid="${esc(s.id)}"><td><input type="text" data-f="code" value="${esc(s.code)}" style="width:6em" aria-label="Kürzel"></td><td><select data-f="grp" aria-label="Gruppe">${['A', 'B', 'C'].map(g => `<option${g === s.grp ? ' selected' : ''}>${g}</option>`).join('')}</select></td><td class="num"><input type="number" data-f="write_rate" value="${s.write_rate || ''}" aria-label="Schreibtempo"></td><td class="num"><input type="number" data-f="tap_rate" value="${s.tap_rate || ''}" aria-label="Tipptempo"></td><td class="num"><input type="number" data-f="goal_paper" value="${s.goal_paper || ''}" placeholder="${S.goalPaper(s)}" aria-label="Ziel Papier"></td><td class="num"><input type="number" data-f="goal_app" value="${s.goal_app || ''}" placeholder="${S.goalApp(s)}" aria-label="Ziel App"></td><td><select data-f="set_id" aria-label="Satz">${setOpts(s.set_id)}</select></td><td><select data-f="stage" aria-label="Stufe"><option value="1"${s.stage === 1 ? ' selected' : ''}>Akq.</option><option value="2"${s.stage === 2 ? ' selected' : ''}>Fl.</option></select></td><td>${pins[s.id] ? `<span class="pinv">${esc(pins[s.id])}</span>` : s.has_pin ? '<span class="muted small">gesetzt</span>' : '<span class="chip bad">keine</span>'} <button class="sm" data-act="pin">neu</button></td><td><button class="sm warn" data-act="delstu" aria-label="Kind entfernen">✕</button></td></tr>`).join('');
+  return `<div class="grid2">
+  <div><h2>Klassen</h2>${clsRows ? `<table><thead><tr><th>Name</th><th>Klassencode</th><th></th></tr></thead><tbody>${clsRows}</tbody></table>` : '<p class="muted">Noch keine Klasse.</p>'}
+    <div class="bar" style="margin-top:12px"><input type="text" id="n-cls" placeholder="z. B. 6b" aria-label="Neue Klasse"><button class="pri" data-act="addcls">Klasse anlegen</button></div></div>
+  <div><h2>Datenschutz</h2><p class="note">Nur Kürzel oder Nummern eintragen, keine Namen. Die Zuordnung Kürzel → Name bleibt im Notenbuch. PINs werden nur verschlüsselt gespeichert und sind nach dem Neuladen nicht mehr sichtbar: Zugangskarten deshalb direkt nach dem Erzeugen drucken.</p>
+    <div class="bar"><button data-act="csv">Klasse als CSV</button></div></div></div>
+  ${c ? `<h2 style="margin-top:32px">Kinder in ${esc(c.name)} <span class="muted small">· Klassencode ${esc(c.join_code)}</span></h2>
+  <div class="bar"><button class="pri" data-act="pins-missing">PINs für alle ohne PIN erzeugen</button><button data-act="pins-all">Alle PINs neu erzeugen</button><button data-act="cards" ${Object.keys(pins).length ? '' : 'disabled'}>Zugangskarten drucken (${students.filter(s => pins[s.id]).length})</button></div>
+  <div class="scroll"><table id="stutab"><thead><tr><th>Kürzel</th><th>Gr.</th><th class="num">Schreib&shy;tempo</th><th class="num">Tipp&shy;tempo</th><th class="num">Ziel Papier</th><th class="num">Ziel App</th><th>Satz</th><th>Stufe</th><th>PIN</th><th></th></tr></thead><tbody>${stu}</tbody></table></div>
+  <p class="muted small">Schreib- und Tipptempo in Ziffern pro Minute. Das Tipptempo misst die App beim Tipptest selbst. Ziele leer lassen = automatisch.</p>
+  <h3 style="margin-top:20px">Kinder hinzufügen</h3><p class="muted small">Ein Kürzel pro Zeile, z. B. 01, 02 … Danach PINs erzeugen und Karten drucken.</p>
+  <textarea id="n-stu" aria-label="Kürzel, eins pro Zeile"></textarea><div class="bar" style="margin-top:8px"><button class="pri" data-act="addstu">Hinzufügen</button></div>` : ''}`;
+}
+
+/* ---------- Diagramm ---------- */
+function drawChart() {
+  const svg = $('#chart'); const s = stuById(ui.stu); if (!svg || !s) return;
+  const box = svg.parentElement, W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
+  const rows = rowsOf(s.id).filter(r => r.mode === 'sprint');
+  if (!rows.length) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle">Noch keine Sprintwerte</text>`; return; }
+  const m = { l: 44, r: 20, t: 24, b: 30 }, gP = S.goalPaper(s), gA = S.goalApp(s);
+  const x0 = dnum(rows[0].d), x1 = Math.max(dnum(rows[rows.length - 1].d), x0 + 7);
+  const top = Math.max(gP, gA, ...rows.map(r => r.correct)) * 1.12;
+  const step = [5, 10, 20, 25, 50].find(v => top / v <= 5) || 50;
+  const X = d => m.l + (dnum(d) - x0) / (x1 - x0) * (W - m.l - m.r), Y = v => H - m.b - v / top * (H - m.t - m.b);
+  let h = '';
+  for (let v = 0; v <= top; v += step) h += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
+  rows.forEach((r, i) => { if (i > 0 && r.set_id !== rows[i - 1].set_id) { const x = X(r.d); h += `<line x1="${x}" x2="${x}" y1="${m.t - 6}" y2="${H - m.b}" stroke="var(--muted)" stroke-dasharray="2 4"/><text x="${x + 4}" y="${m.t + 6}">${esc(r.set_id)}</text>`; } });
+  [['papier', 'var(--teal)', gP], ['app', 'var(--app)', gA]].forEach(([md, col, g]) => {
+    const rr = rows.filter(r => r.medium === md); if (!rr.length) return;
+    h += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(g)}" y2="${Y(g)}" stroke="${col}" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W - m.r}" y="${Y(g) - 6}" text-anchor="end" style="fill:${col}">Ziel ${md === 'app' ? 'App' : 'Papier'} ${g}</text>`;
+    const byDay = {}; rr.forEach(r => { byDay[r.d] = Math.max(byDay[r.d] || 0, r.correct); });
+    const pts = Object.keys(byDay).sort().map(d => X(d) + ',' + Y(byDay[d])).join(' ');
+    h += `<polyline fill="none" stroke="${col}" stroke-width="2.5" points="${pts}"/>`;
+    rr.forEach(r => { h += `<circle cx="${X(r.d)}" cy="${Y(r.correct)}" r="${r.kind === 'K' ? 5.5 : 3.5}" fill="${r.kind === 'K' ? 'var(--bg)' : col}" stroke="${col}" stroke-width="2"><title>${fmt(r.d)} ${md === 'app' ? 'App' : 'Papier'}: ${r.correct} richtig, ${r.errors} Fehler</title></circle>`; });
+  });
+  const n = W < 520 ? 2 : 5; for (let i = 0; i < n; i++) { const d = addDays(rows[0].d, Math.round((x1 - x0) * i / (n - 1))); h += `<text x="${X(d)}" y="${H - 8}" text-anchor="${i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}">${fmt(d)}</text>`; }
+  svg.innerHTML = h;
+}
+
+/* ---------- Render ---------- */
+function render() {
+  renderHeader();
+  const main = $('#main');
+  if (chartRO) { chartRO.disconnect(); chartRO = null; }
+  if (ui.view === 'verwalten') main.innerHTML = viewVerwalten();
+  else if (!cls()) main.innerHTML = emptyState();
+  else if (ui.view === 'klasse') main.innerHTML = viewKlasse();
+  else if (ui.view === 'fakten') { main.innerHTML = viewFakten(); loadFakten(); }
+  else if (ui.view === 'schueler') { main.innerHTML = viewSchueler(); const svg = $('#chart'); if (svg) { chartRO = new ResizeObserver(drawChart); chartRO.observe(svg.parentElement); } const s = stuById(ui.stu); if (s) loadStudentFacts(s); }
+  else main.innerHTML = viewErfassen();
+}
+function route() { const h = location.hash.slice(1); ui.view = ['erfassen', 'klasse', 'schueler', 'fakten', 'verwalten'].includes(h) ? h : 'erfassen'; render(); }
+
+/* ---------- Ereignisse ---------- */
+function bind() {
+  window.addEventListener('hashchange', route);
+  $('#f-cls').addEventListener('change', async e => { ui.cls = e.target.value; ui.stu = null; pins = {}; await loadClass(); render(); });
+  $('#logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+  const main = $('#main');
+  main.addEventListener('change', async e => {
+    const t = e.target;
+    if (t.id === 'f-date' && t.value) { ui.date = t.value; return render(); }
+    if (t.id === 'f-stu') { ui.stu = t.value; return render(); }
+    if (t.id === 'f-days') { ui.days = +t.value; return render(); }
+    if (t.dataset.act === 'rencls') { const k = classes.find(x => x.id === t.dataset.cid); if (k && t.value.trim()) { k.name = t.value.trim(); await q(sb.from('classes').update({ name: k.name }).eq('id', k.id), 'Klasse'); renderHeader(); } return; }
+    const tr = t.closest('tr[data-sid]'); if (!tr) return;
+    const s = stuById(tr.dataset.sid); if (!s) return;
+    if (t.closest('#sheet')) {
+      const num = v => { if (v === '') return null; const n = Math.round(+String(v).replace(',', '.')); return Number.isFinite(n) && n >= 0 ? n : null; };
+      const c = num(tr.querySelector('[data-f=correct]').value), er = num(tr.querySelector('[data-f=errors]').value);
+      try {
+        await q(sb.rpc('teacher_paper', { p_student: s.id, p_d: ui.date, p_kind: ui.kind, p_set: s.set_id, p_correct: c, p_errors: er }), 'Papierwert');
+        const i = sprints.findIndex(r => r.student_id === s.id && r.d === ui.date && r.kind === ui.kind && r.medium === 'papier');
+        if (c == null && er == null) { if (i >= 0) sprints.splice(i, 1); }
+        else if (i >= 0) { sprints[i].correct = c ?? 0; sprints[i].errors = er ?? 0; }
+        else sprints.push({ id: null, student_id: s.id, d: ui.date, set_id: s.set_id, correct: c ?? 0, errors: er ?? 0, kind: ui.kind, medium: 'papier', mode: 'sprint', created_at: new Date().toISOString() });
+        sprints.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : (a.created_at < b.created_at ? -1 : 1));
+        const st = status(s); tr.querySelector('.hn').innerHTML = hints(s, st, true); const sp = tr.querySelector('.sp'); if (sp) sp.innerHTML = spark(s); renderHeader();
+      } catch (err) {}
+      return;
+    }
+    if (t.closest('#stutab')) {
+      const f = t.dataset.f; let v = t.value;
+      if (['write_rate', 'tap_rate', 'goal_paper', 'goal_app', 'stage'].includes(f)) v = Math.max(0, Math.round(+v || 0));
+      if (f === 'code') { v = v.trim(); if (!v) return; }
+      const patch = { [f]: v }; if (f === 'set_id' || f === 'stage') patch.since = today();
+      try { await updateStudent(s, patch); } catch (err) { return; }
+      if (['write_rate', 'tap_rate', 'goal_paper', 'goal_app'].includes(f)) { tr.querySelector('[data-f=goal_paper]').placeholder = S.goalPaper(s); tr.querySelector('[data-f=goal_app]').placeholder = S.goalApp(s); }
+    }
+  });
+  main.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || !e.target.closest('#sheet')) return;
+    e.preventDefault(); const ins = [...main.querySelectorAll('#sheet input')]; const i = ins.indexOf(e.target);
+    e.target.dispatchEvent(new Event('change', { bubbles: true }));
+    const nx = ins[i + 1]; if (nx) { nx.focus(); nx.select(); }
+  });
+  main.addEventListener('click', async e => {
+    const b = e.target.closest('[data-act]'); if (!b || b.tagName === 'INPUT') return;
+    const act = b.dataset.act, tr = b.closest('tr[data-sid]');
+    const s = b.dataset.sid ? stuById(b.dataset.sid) : tr ? stuById(tr.dataset.sid) : stuById(ui.stu);
+    try {
+      if (act === 'day') { ui.date = addDays(ui.date, +b.dataset.n); render(); }
+      else if (act === 'kind') { ui.kind = b.dataset.k; render(); }
+      else if (act === 'op') { ui.op = b.dataset.o; render(); }
+      else if (act === 'stu') { ui.stu = b.dataset.sid; }
+      else if (act === 'stage' && s) { await advanceStage(s); toast(s.code + ': jetzt Flüssigkeit in ' + s.set_id); render(); }
+      else if (act === 'set' && s) { const from = s.set_id; await advanceSet(s); toast(s.code + ': ' + from + ' abgeschlossen, weiter mit ' + s.set_id); render(); }
+      else if (act === 'chk' && s) {
+        const done = JSON.parse(JSON.stringify(s.done || [])); const x = done.find(y => y.set === b.dataset.set);
+        if (x) { if (b.dataset.r === '1') (x.checks = x.checks || []).push(today()); else { x.checks = []; x.d = today(); toast('Kontrollen für ' + x.set + ' starten neu'); } await updateStudent(s, { done }); render(); }
+      }
+      else if (act === 'adddiag' && s) {
+        const v = id => { const x = $('#' + id).value; return x === '' ? null : Math.round(+x); };
+        const d = { label: $('#d-label').value, d: $('#d-date').value || today(), add: v('d-add'), sub: v('d-sub'), mul: v('d-mul'), div: v('d-div') };
+        if ([d.add, d.sub, d.mul, d.div].every(x => x == null)) return toast('Mindestens einen Wert eintragen');
+        await updateStudent(s, { diag: (s.diag || []).concat([d]) }); render();
+      }
+      else if (act === 'deldiag' && s) { const diag = (s.diag || []).slice(); diag.splice(+b.dataset.i, 1); await updateStudent(s, { diag }); render(); }
+      else if (act === 'delrow') {
+        const id = +b.dataset.id; if (!id) { await loadClass(); return render(); }
+        if (!await ask('Diesen Eintrag löschen?', 'Löschen')) return;
+        await q(sb.from('sprints').delete().eq('id', id), 'Eintrag'); sprints = sprints.filter(r => r.id !== id); render();
+      }
+      else if (act === 'addcls') {
+        const n = $('#n-cls').value.trim(); if (!n) return toast('Bitte einen Namen eingeben');
+        const k = await q(sb.from('classes').insert({ name: n }).select().single(), 'Klasse'); classes.push(k); ui.cls = k.id; await loadClass(); render();
+      }
+      else if (act === 'delcls') {
+        const k = classes.find(x => x.id === b.dataset.cid); if (!k) return;
+        if (!await ask('Klasse „' + k.name + '“ mit allen Kindern und Einträgen endgültig löschen?', 'Löschen')) return;
+        await q(sb.from('classes').delete().eq('id', k.id), 'Klasse'); await loadClasses(); await loadClass(); render();
+      }
+      else if (act === 'addstu') {
+        const codes = [...new Set($('#n-stu').value.split(/\n/).map(x => x.trim()).filter(Boolean))].filter(c => !students.some(s => s.code.toLowerCase() === c.toLowerCase()));
+        if (!codes.length) return toast('Keine neuen Kürzel');
+        const rows = await q(sb.from('students').insert(codes.map(code => ({ class_id: ui.cls, code }))).select(), 'Kinder');
+        students = students.concat(rows).sort((a, b) => a.code.localeCompare(b.code)); toast(rows.length + ' Kinder hinzugefügt'); render();
+      }
+      else if (act === 'delstu' && s) {
+        if (!await ask('Kind „' + s.code + '“ mit allen Einträgen endgültig entfernen?', 'Entfernen')) return;
+        await q(sb.from('students').delete().eq('id', s.id), 'Kind'); students = students.filter(x => x.id !== s.id); sprints = sprints.filter(r => r.student_id !== s.id); render();
+      }
+      else if (act === 'pin' && s) { if (s.has_pin && !await ask('Neue PIN für „' + s.code + '“? Die alte PIN gilt dann nicht mehr und das Kind wird auf allen Geräten abgemeldet.', 'Neue PIN')) return; await makePins([s]); render(); }
+      else if (act === 'pins-missing') { const list = students.filter(x => !x.has_pin); if (!list.length) return toast('Alle Kinder haben eine PIN'); await makePins(list); render(); }
+      else if (act === 'pins-all') { if (!await ask('Für alle ' + students.length + ' Kinder neue PINs erzeugen? Alle werden abgemeldet und brauchen neue Karten.', 'Alle neu')) return; await makePins(students); render(); }
+      else if (act === 'cards') printCards();
+      else if (act === 'csv') csvExport();
+    } catch (err) { /* Status zeigt den Fehler */ }
+  });
+}
+function randomPin() { const a = new Uint32Array(1); crypto.getRandomValues(a); return String(a[0] % 10000).padStart(4, '0'); }
+async function makePins(list) {
+  let n = 0;
+  for (const s of list) { const pin = randomPin(); await q(sb.rpc('teacher_set_pin', { p_student: s.id, p_pin: pin }), 'PIN'); pins[s.id] = pin; s.has_pin = true; n++; }
+  toast(n + ' PIN(s) erzeugt. Jetzt Zugangskarten drucken.');
+}
+function schuelerUrl() { return C.schuelerUrl || new URL('schueler.html', location.href).href.split('#')[0]; }
+function printCards() {
+  const c = cls(); const list = students.filter(s => pins[s.id]); if (!list.length) return toast('Erst PINs erzeugen');
+  const base = schuelerUrl();
+  const card = s => {
+    const url = base + '#k=' + encodeURIComponent(c.join_code) + '&c=' + encodeURIComponent(s.code);
+    let svg = ''; try { const qr = window.qrcode(0, 'M'); qr.addData(url); qr.make(); svg = qr.createSvgTag({ cellSize: 3, margin: 0, scalable: true }); } catch (e) {}
+    return `<div class="card"><div><div style="font-size:9pt;color:#555">Sprint · Grundaufgaben</div><div style="font-size:14pt;font-weight:700;margin:2mm 0">Klasse ${esc(c.name)} · Kürzel ${esc(s.code)}</div><div>Klassencode: <b>${esc(c.join_code)}</b></div><div style="margin-top:2mm">PIN:</div><div class="pin">${esc(pins[s.id])}</div><div style="font-size:8pt;color:#555;margin-top:2mm;word-break:break-all">${esc(base)}</div></div><div>${svg}</div></div>`;
+  };
+  $('#print').innerHTML = `<div class="cards">${list.map(card).join('')}</div>`;
+  window.print();
+}
+function csvExport() {
+  const c = cls(); if (!c) return;
+  const qv = v => /[;"\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const code = {}; students.forEach(s => code[s.id] = s.code);
+  const out = ['Datum;Klasse;Kürzel;Satz;Aufgaben richtig;Fehler;Art;Medium;Modus'];
+  sprints.forEach(r => out.push([r.d, c.name, code[r.student_id] || '?', r.set_id, r.correct, r.errors, r.kind === 'K' ? 'Kontrolle' : 'Tag', r.medium, r.mode].map(qv).join(';')));
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + out.join('\n')], { type: 'text/csv' })); a.download = 'sprints-' + c.name.replace(/[^\w-]+/g, '_') + '-' + today() + '.csv'; document.body.append(a); a.click(); a.remove();
+}
+
+/* ---------- Start ---------- */
+async function boot() {
+  if (!sb) { $('#main').innerHTML = '<div class="empty">config.js fehlt oder vendor/supabase.js wurde nicht geladen.</div>'; return; }
+  const { data } = await sb.auth.getSession();
+  if (!data || !data.session) return viewLogin();
+  bind();
+  try { await loadClasses(); await loadClass(); setStatus('Verbunden'); } catch (e) { $('#main').innerHTML = '<div class="empty">Daten konnten nicht geladen werden. Ist das Schema eingespielt?</div>'; return; }
+  route();
+}
+boot();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Statischer Webserver für die App (z. B. in Portainer als Stack einfügen).
+# Vorher web/config.js anlegen (siehe web/config.example.js).
+services:
+  sprint-web:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro

@@ -1,0 +1,7 @@
+{
+  "name": "sprint-tracker-tests",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node test_schema.mjs && node test_student.mjs && node test_teacher.mjs" },
+  "devDependencies": { "@electric-sql/pglite": "0.6.0", "jsdom": "24.1.3" }
+}
