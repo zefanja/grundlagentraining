@@ -16,10 +16,32 @@ Selbst gehostete Web-App für das Grundaufgaben-Training (1+1, 1·1) in Klasse 5
 | `web/shared.js` | gemeinsame Logik: Sätze A1–M7, Mischung 50/30/20, Ziele |
 | `web/vendor/` | supabase-js und qrcode-generator (MIT), lokal mitgeliefert |
 | `web/config.example.js` | Vorlage für die Zugangsdaten |
-| `docker-compose.yml`, `nginx.conf` | statischer Webserver für Portainer |
+| `scripts/build-pages.mjs` | baut die Seite für GitHub Pages, erzeugt `config.js` aus Secrets |
+| `docker-compose.yml`, `nginx.conf` | statischer Webserver für Portainer (Alternative zu Pages) |
 | `tests/` | automatische Tests für Schema und Apps (optional) |
 
-## Einrichtung (etwa 30 Minuten)
+## Einrichtung mit GitHub Pages (empfohlen, ohne eigenen Server)
+
+Die App ist eine rein statische Seite und läuft direkt auf GitHub Pages. Die Zugangsdaten liegen als **GitHub Secrets** im Repo, nicht im Code; beim Deployment erzeugt der Workflow daraus `config.js`.
+
+1. **Supabase vorbereiten** wie unten in Schritt 1–3 (Projekt, Schema, Lehrkräfte anlegen).
+2. **Secrets anlegen:** Im Repo *Settings → Secrets and variables → Actions → New repository secret*:
+   - `SUPABASE_URL`: *Project URL*, z. B. `https://xyz.supabase.co`
+   - `SUPABASE_ANON_KEY`: der *anon public* Key (**nie** den `service_role`-Key; der Build bricht dann ab)
+   - optional unter *Variables*: `SCHUELER_URL`, falls die QR-Codes auf eine andere Adresse zeigen sollen (z. B. eigene Domain)
+3. **Pages einschalten:** *Settings → Pages → Build and deployment → Source: **GitHub Actions***.
+4. **Veröffentlichen:** Jeder Push auf `main` testet die App und veröffentlicht sie unter `https://<benutzer>.github.io/<repo>/`. Von Hand: *Actions → CI → Run workflow*.
+5. **Supabase-Adresse freigeben:** In Supabase unter *Authentication → URL Configuration* die Pages-Adresse als *Site URL* eintragen.
+
+Hinweis: Der anon-Key ist nach dem Deployment in `config.js` öffentlich lesbar. Das ist bei Supabase so vorgesehen; geschützt wird alles über die Zugriffsregeln (RLS) im Schema. Die Secrets sorgen dafür, dass die Daten nicht im Repo stehen und zentral geändert werden können. Die Content-Security-Policy setzt der Build als `<meta>`-Tag (Pages erlaubt keine eigenen Header).
+
+Lokal ausprobieren:
+
+```
+SUPABASE_URL=https://xyz.supabase.co SUPABASE_ANON_KEY=... node scripts/build-pages.mjs ../_site
+```
+
+## Einrichtung mit eigenem Server (Docker/Portainer)
 
 1. **Supabase bereitstellen.** Entweder Supabase Cloud mit Region *Frankfurt (eu-central-1)* und Auftragsverarbeitungsvertrag, oder selbst gehostet nach der offiziellen Docker-Anleitung auf deinem Server. Für den Datenschutz ist die selbst gehostete Variante am einfachsten zu begründen, braucht aber mehr Ressourcen (mehrere Container).
 2. **Schema einspielen.** Im Supabase-Dashboard: *SQL Editor* → Inhalt von `supabase/schema.sql` einfügen → *Run*.

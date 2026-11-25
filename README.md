@@ -6,7 +6,7 @@ Ein Trainingsprogramm, mit dem Schülerinnen und Schüler der Klassen 5–7 ihre
 
 | Ordner | Was | Wie benutzen |
 |---|---|---|
-| [`app/`](app/) | Lehrer- und Schüler-App mit Supabase: Schülerkonten mit PIN, Zugangskarten mit QR-Code, Sprints am Handy mit eigener Zifferntastatur, Papierwerte, Faktenanalyse | Selbst hosten, Anleitung in [`app/README.md`](app/README.md) |
+| [`app/`](app/) | Lehrer- und Schüler-App mit Supabase: Schülerkonten mit PIN, Zugangskarten mit QR-Code, Sprints am Handy mit eigener Zifferntastatur, Papierwerte, Faktenanalyse | Über GitHub Pages (Zugangsdaten als Secrets) oder selbst gehostet, Anleitung in [`app/README.md`](app/README.md) |
 | [`material/`](material/) | Generator für das Druckmaterial: Eingangstest (Form A/B, Interview, Klassenauswertung), 14 Satzblätter mit Einführungsskripten, 56 Sprintblätter mit Lösungen, Kurvenblatt, Reparaturliste | `pip install -r material/requirements.txt && python material/build.py` → PDFs in `material/out/` |
 | [`legacy/`](legacy/) | Erste Version der Lehrer-App als einzelne HTML-Datei (lief als Artifact auf claude.ai, speichert nur dort oder im Browser) | Nur noch als Referenz |
 
@@ -34,6 +34,7 @@ Für das Kriterium zählen nur Papierwerte und App-Sprints im **Unterrichtsfenst
 Bei jedem Push und Pull Request:
 
 - **App-Tests:** Datenbankschema und Zugriffsregeln in einer eingebetteten Postgres-Datenbank (PGlite), Schüler- und Lehrer-App in einem simulierten Browser.
+- **GitHub Pages:** Bei Push auf `main` wird die App nach erfolgreichen Tests veröffentlicht; `config.js` entsteht aus den Secrets `SUPABASE_URL` und `SUPABASE_ANON_KEY`.
 - **Druckmaterial:** Die PDFs werden neu gebaut und als Artefakt `druckmaterial` angehängt (90 Tage abrufbar unter *Actions* → Lauf → *Artifacts*).
 
 Bei einem Tag `v…` (z. B. `git tag v1.0 && git push --tags`) entsteht zusätzlich ein **Release** mit den drei PDFs und der App als ZIP.
